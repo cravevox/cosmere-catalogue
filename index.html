@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmere Catalogue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0c14; overflow-x: hidden; }
+    #root { min-height: 100vh; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0a0c14; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState } = React;
+
+
+// ── Spoiler helpers ──
+function mkSp(books, au, sa) {
+  const rs = new Set();
+  books.forEach(b => b.read && rs.add(b.id));
+  au.forEach(a => a.read && rs.add(a.id));
+  return {
+    u: (req) => sa || req.every(id => rs.has(id)),
+    uA: (req) => sa || req.length === 0 || req.some(id => rs.has(id)),
+    sa
+  };
+}
+
+// ── Data ──
+const B0 = [
+  {id:"twok",title:"The Way of Kings",series:"Stormlight Archive",so:1,world:"Roshar",type:"Novel",pages:1007,read:true,owned:true},
+  {id:"wor",title:"Words of Radiance",series:"Stormlight Archive",so:2,world:"Roshar",type:"Novel",pages:1087,read:true,owned:true},
+  {id:"edge",title:"Edgedancer",series:"Stormlight Archive",so:2.5,world:"Roshar",type:"Novella",pages:226,read:true,owned:true,note:"Also in Arcanum Unbounded"},
+  {id:"oath",title:"Oathbringer",series:"Stormlight Archive",so:3,world:"Roshar",type:"Novel",pages:1248,read:true,owned:true},
+  {id:"dawn",title:"Dawnshard",series:"Stormlight Archive",so:3.5,world:"Roshar",type:"Novella",pages:224,read:true,owned:true},
+  {id:"row",title:"Rhythm of War",series:"Stormlight Archive",so:4,world:"Roshar",type:"Novel",pages:1232,read:true,owned:true},
+  {id:"wat",title:"Wind and Truth",series:"Stormlight Archive",so:5,world:"Roshar",type:"Novel",pages:1344,read:true,owned:true},
+  {id:"tfe",title:"The Final Empire",series:"Mistborn Era 1",so:1,world:"Scadrial",type:"Novel",pages:541,read:true,owned:true},
+  {id:"woa",title:"The Well of Ascension",series:"Mistborn Era 1",so:2,world:"Scadrial",type:"Novel",pages:590,read:true,owned:true},
+  {id:"hoa",title:"The Hero of Ages",series:"Mistborn Era 1",so:3,world:"Scadrial",type:"Novel",pages:572,read:true,owned:true},
+  {id:"aol",title:"The Alloy of Law",series:"Mistborn Era 2",so:1,world:"Scadrial",type:"Novel",pages:332,read:true,owned:true},
+  {id:"sos",title:"Shadows of Self",series:"Mistborn Era 2",so:2,world:"Scadrial",type:"Novel",pages:376,read:true,owned:true},
+  {id:"bom",title:"The Bands of Mourning",series:"Mistborn Era 2",so:3,world:"Scadrial",type:"Novel",pages:448,read:true,owned:true},
+  {id:"tlm",title:"The Lost Metal",series:"Mistborn Era 2",so:4,world:"Scadrial",type:"Novel",pages:528,read:false,owned:true},
+  {id:"elan",title:"Elantris",series:"Standalone",so:1,world:"Sel",type:"Novel",pages:492,read:true,owned:true},
+  {id:"warb",title:"Warbreaker",series:"Standalone",so:2,world:"Nalthis",type:"Novel",pages:592,read:true,owned:true},
+  {id:"tress",title:"Tress of the Emerald Sea",series:"Secret Projects",so:1,world:"Lumar",type:"Novel",pages:480,read:false,owned:true},
+  {id:"yumi",title:"Yumi and the Nightmare Painter",series:"Secret Projects",so:2,world:"Komashi",type:"Novel",pages:464,read:false,owned:false},
+  {id:"sunlit",title:"The Sunlit Man",series:"Secret Projects",so:3,world:"Canticle",type:"Novel",pages:448,read:false,owned:false,sn:"Set after all 10 SA books"},
+  {id:"ember",title:"Isles of the Emberdark",series:"Secret Projects",so:4,world:"First of the Sun",type:"Novel",pages:400,read:false,owned:false,sn:"Far-future Cosmere"},
+];
+
+const AU0 = [
+  {id:"hope",title:"The Hope of Elantris",ps:"Elantris",world:"Sel",type:"Short Story",pages:25,read:true},
+  {id:"11th",title:"The Eleventh Metal",ps:"Mistborn",world:"Scadrial",type:"Short Story",pages:20,read:false,note:"Unsure if read"},
+  {id:"es",title:"The Emperor's Soul",ps:"Elantris (same world)",world:"Sel",type:"Novella",pages:175,read:true},
+  {id:"jak",title:"Allomancer Jak and the Pits of Eltania",ps:"Mistborn Era 2",world:"Scadrial",type:"Short Story",pages:25,read:false},
+  {id:"ws_ex",title:"White Sand (excerpt)",ps:"White Sand",world:"Taldain",type:"Excerpt",pages:50,read:false,note:"Full graphic novel is 3 volumes"},
+  {id:"shadows",title:"Shadows for Silence in the Forests of Hell",ps:"Standalone",world:"Threnody",type:"Novella",pages:50,read:false},
+  {id:"6th",title:"Sixth of the Dusk",ps:"Standalone",world:"First of the Sun",type:"Novella",pages:50,read:true,note:"Now in Isles of the Emberdark"},
+  {id:"sh",title:"Mistborn: Secret History",ps:"Mistborn",world:"Scadrial",type:"Novella",pages:190,read:true},
+  {id:"edge_au",title:"Edgedancer",ps:"Stormlight 2.5",world:"Roshar",type:"Novella",pages:226,read:true,note:"Also under Stormlight"},
+];
+
+const SHARDS = [
+  {n:1,name:"Honor",intent:"Oaths & bonds",planet:"Roshar",vessel:"Tanavast",status:"Splintered",sA:{t:"Merged (Retribution)",r:["wat"]},rN:["twok"],rP:["twok"],rV:["wor"],rS:["wor"],notes:[{t:"Dalinar briefly held Honor",r:["wat"]},{t:"Now merged with Odium as Retribution",r:["wat"]}]},
+  {n:2,name:"Cultivation",intent:"Growth & change",planet:"Roshar",vessel:"Koravellium Avast",status:"Whole",rN:["wor"],rP:["wor"],rV:["wat"],rS:["wor"],notes:[{t:"Vessel is a dragon",r:["wat"]}]},
+  {n:3,name:"Odium",intent:"Divine hatred",planet:"Roshar",vessel:"Taravangian",status:"Merged (Retribution)",rN:["twok"],rP:["twok"],rV:["wor"],rS:["twok"],notes:[{t:"Original vessel Rayse",r:["wor"]},{t:"Taravangian killed Rayse",r:["row"]},{t:"Merged with Honor as Retribution",r:["wat"]}]},
+  {n:4,name:"Preservation",intent:"Stasis & protection",planet:"Scadrial",vessel:"Sazed (Harmony)",status:"Whole (merged)",rN:["tfe"],rP:["tfe"],rV:["hoa"],rS:["hoa"],notes:[{t:"Original vessel Leras",r:["hoa"]},{t:"Vin held briefly before destroying Ruin",r:["hoa"]}]},
+  {n:5,name:"Ruin",intent:"Entropy & destruction",planet:"Scadrial",vessel:"Sazed (Harmony)",status:"Whole (merged)",rN:["tfe"],rP:["tfe"],rV:["hoa"],rS:["hoa"],notes:[{t:"Original vessel Ati",r:["hoa"]},{t:"Harmony shifting toward Discord",r:["bom"]}]},
+  {n:6,name:"Endowment",intent:"Bestowing gifts",planet:"Nalthis",vessel:"Edgli",status:"Whole",rN:["warb"],rP:["warb"],rV:["warb"],rS:["warb"],notes:[]},
+  {n:7,name:"Autonomy",intent:"Independence",planet:"Taldain",vessel:"Bavadin",status:"Whole",rN:["ws_ex"],rP:["ws_ex"],rV:["ws_ex"],rS:["ws_ex"],notes:[{t:"Sends avatars to other worlds",r:["bom"]},{t:"Attempted to invade Scadrial",r:["tlm"]}]},
+  {n:8,name:"Devotion",intent:"Love & dedication",planet:"Sel",vessel:"Aona",status:"Splintered",rN:["elan"],rP:["elan"],rV:["sh"],rS:["sh"],notes:[{t:"Killed by Odium",r:["sh"]}]},
+  {n:9,name:"Dominion",intent:"Control & authority",planet:"Sel",vessel:"Skai",status:"Splintered",rN:["elan"],rP:["elan"],rV:["sh"],rS:["sh"],notes:[{t:"Killed alongside Devotion",r:["sh"]}]},
+  {n:10,name:"Ambition",intent:"Aspiration",planet:"Threnody",vessel:"Uli Da",status:"Splintered",rN:["shadows"],rP:["shadows"],rV:["shadows"],rS:["shadows"],notes:[{t:"Odium warped Threnody killing Ambition",r:["shadows"]}]},
+  {n:11,name:"Virtuosity",intent:"Artistry",planet:"Komashi",vessel:"Unknown",status:"Splintered (voluntary)",rN:["yumi"],rP:["yumi"],rV:["yumi"],rS:["yumi"],notes:[]},
+  {n:12,name:"Mercy",intent:"Mercy",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["sh"],rP:[],rV:[],rS:["sh"],notes:[]},
+  {n:13,name:"Valor",intent:"Courage",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["row"],rP:[],rV:[],rS:["row"],notes:[]},
+  {n:14,name:"Whimsy",intent:"Whimsy",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["row"],rP:[],rV:[],rS:["row"],notes:[]},
+  {n:15,name:"Invention",intent:"Creation",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["row"],rP:[],rV:[],rS:["row"],notes:[]},
+  {n:16,name:"Reason",intent:"Logic",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["wat"],rP:[],rV:[],rS:["wat"],notes:[]},
+];
+
+const DAWNSHARDS = [
+  {n:1,cmd:"Change",holder:"Rysn Ftori",loc:"Roshar (Aimia)",rR:["dawn"],rH:["dawn"],rC:["dawn"],notes:[{t:"Protected by the Sleepless",r:["dawn"]},{t:"Primal Commands used to create the Cosmere",r:["dawn"]}]},
+  {n:2,cmd:"Exist",holder:"Sigzil (fled Roshar)",loc:"Shadesmar",rR:["wat"],rH:["wat"],rC:["wat"],notes:[{t:"Held by Hoid in the deep past",r:["wat"]},{t:"Hoid passed it to Sigzil before Retribution found him",r:["wat"]},{t:"Sigzil gave it away; hunted by Night Brigade",r:["sunlit"]}]},
+  {n:3,cmd:"Unknown",holder:"Unknown",loc:"Unknown",rR:[],rH:[],rC:[],notes:[{t:"One was protected by dragons on Yolen",r:["sh"]}]},
+  {n:4,cmd:"Unknown",holder:"Unknown",loc:"Unknown",rR:[],rH:[],rC:[],notes:[{t:"One is said to be different from the rest",r:["dawn"]}]},
+];
+
+const HOID = [
+  {book:"elan",alias:"Beggar",world:"Sel",color:"#e879a8",what:"Helps Sarene smuggle weapons into Elantris. Tries to become an Elantrian but fails.",magic:[]},
+  {book:"tfe",alias:"Informant",world:"Scadrial",color:"#c49a4d",what:"Working as an informant in Luthadel. Meets Kelsier.",magic:[]},
+  {book:"woa",alias:"Informant",world:"Scadrial",color:"#c49a4d",what:"In Fadrex City. Vin goes to meet him but avoids him.",magic:[]},
+  {book:"hoa",alias:"Informant",world:"Scadrial",color:"#c49a4d",what:"Present during the final events of Era 1.",magic:[]},
+  {book:"sh",alias:"Cephandrius",world:"Scadrial",color:"#c49a4d",what:"Meets Kelsier at the Well. Consumes Lerasium, becoming a Mistborn.",magic:["Allomancy"]},
+  {book:"warb",alias:"Storyteller",world:"Nalthis",color:"#a78bfa",what:"Appears in T'Telir. Acquires Breaths.",magic:["Awakening"]},
+  {book:"es",alias:"Fool",world:"Sel",color:"#e879a8",what:"Speaks to Shai in her cell.",magic:[]},
+  {book:"twok",alias:"Wit (King's Wit)",world:"Roshar",color:"#4a9eff",what:"Insults nobles. Tells Kaladin the Wandersail story using smoke illusions. Meets Taln.",magic:["Illusion Magic"]},
+  {book:"wor",alias:"Wit",world:"Roshar",color:"#4a9eff",what:"Tells the Fleet story. Bonds Cryptic spren Design. Becomes a Lightweaver.",magic:["Lightweaving (Radiant)","Awakening"]},
+  {book:"oath",alias:"Wit",world:"Roshar",color:"#4a9eff",what:"Tells The Girl Who Looked Up. Uses Awakening on a doll. Romance with Jasnah.",magic:["Awakening","Lightweaving"]},
+  {book:"aol",alias:"Beggar",world:"Scadrial",color:"#c49a4d",what:"At the wedding where the Vanishers attack.",magic:[]},
+  {book:"sos",alias:"Carriage Driver",world:"Scadrial",color:"#c49a4d",what:"Wax's driver. Befriends Wayne.",magic:[]},
+  {book:"bom",alias:"Beggar",world:"Scadrial",color:"#c49a4d",what:"Gives Wax a metalmind with Kelsier's memories.",magic:[]},
+  {book:"row",alias:"Wit",world:"Roshar",color:"#4a9eff",what:"Confronts Odium. Memories tampered with via corrupted Breath.",magic:["Allomancy","Awakening","Lightweaving"]},
+  {book:"wat",alias:"Wit",world:"Roshar",color:"#4a9eff",what:"Discovers memory tampering. Passes Dawnshard to Sigzil. Body destroyed by Retribution; survives via backup.",magic:["Allomancy","Awakening","Lightweaving","Dawnshard"]},
+  {book:"tress",alias:"Narrator",world:"Lumar",color:"#4dc4b8",what:"Narrates the entire book. Runs a business on Lumar with Design.",magic:["Lightweaving","Awakening","Allomancy"]},
+  {book:"yumi",alias:"Noodle Shop Owner",world:"Komashi",color:"#ec4899",what:"Referenced running a noodle shop. Design is with him.",magic:[]},
+];
+
+const TIMELINE = [
+  {era:"Mythic",y:0,name:"Shattering of Adonalsium",desc:"16 people killed the god and divided its power into 16 Shards.",world:"Yolen",color:"#e2e8f0",req:["sh"],big:true},
+  {era:"Mythic",y:1,name:"Shards Scatter",desc:"Vessels took Shards to different worlds.",world:"Yolen",color:"#e2e8f0",req:["sh"]},
+  {era:"Ancient",y:2,name:"Odium Kills Devotion & Dominion",desc:"Attacked Sel, forcing Shard power into the Cognitive Realm.",world:"Sel",color:"#e879a8",req:["sh"]},
+  {era:"Ancient",y:3,name:"Odium Wounds Ambition",desc:"Clash in the Threnodite system created the Shades.",world:"Threnody",color:"#94a3b8",req:["shadows"]},
+  {era:"Ancient",y:4,name:"Honor & Cultivation on Roshar",desc:"Two Shards settled. Humans came from Ashyn.",world:"Roshar",color:"#4a9eff",req:["oath"]},
+  {era:"Ancient",y:5,name:"Oathpact & Desolations",desc:"Heralds formed the Oathpact. Desolations began.",world:"Roshar",color:"#4a9eff",req:["twok"]},
+  {era:"Ancient",y:6,name:"Honor Splintered",desc:"Odium killed Honor. Stormfather became his remnant.",world:"Roshar",color:"#4a9eff",req:["wor"]},
+  {era:"Ancient",y:7,name:"The Recreance",desc:"Knights Radiant abandoned oaths, killing spren.",world:"Roshar",color:"#4a9eff",req:["oath"]},
+  {era:"Classical",y:10,name:"The Reod / Elantris Falls",desc:"Earthquake broke AonDor. Elantrians cursed.",world:"Sel",color:"#e879a8",req:["elan"]},
+  {era:"Classical",y:11,name:"Lord Ruler's Ascension",desc:"Rashek used the Well, ruling for 1000 years.",world:"Scadrial",color:"#c49a4d",req:["tfe"]},
+  {era:"Classical",y:12,name:"Final Empire Falls",desc:"Kelsier's crew and Vin overthrow the Lord Ruler.",world:"Scadrial",color:"#c49a4d",req:["tfe"],big:true},
+  {era:"Classical",y:13,name:"Ruin Freed",desc:"Vin releases the Well, freeing Ruin.",world:"Scadrial",color:"#c49a4d",req:["woa"]},
+  {era:"Classical",y:14,name:"The Catacendre",desc:"Vin and Ati destroy each other. Sazed becomes Harmony.",world:"Scadrial",color:"#c49a4d",req:["hoa"],big:true},
+  {era:"Classical",y:15,name:"Warbreaker Events",desc:"Vivenna and Vasher's story. Nightblood created.",world:"Nalthis",color:"#a78bfa",req:["warb"]},
+  {era:"Modern",y:20,name:"Gavilar Assassinated",desc:"Szeth kills the king. Stormlight era begins.",world:"Roshar",color:"#4a9eff",req:["twok"]},
+  {era:"Modern",y:21,name:"Radiants Return",desc:"New Radiants emerge. Shallan reaches Shattered Plains.",world:"Roshar",color:"#4a9eff",req:["wor"]},
+  {era:"Modern",y:22,name:"Battle of Thaylen Field",desc:"Dalinar declares 'I am Unity.' Everstorm changes everything.",world:"Roshar",color:"#4a9eff",req:["oath"],big:true},
+  {era:"Modern",y:23,name:"Dawnshard Found",desc:"Rysn acquires a Dawnshard on Aimia.",world:"Roshar",color:"#4a9eff",req:["dawn"]},
+  {era:"Modern",y:24,name:"Urithiru Occupied",desc:"Navani discovers anti-Investiture. Taravangian kills Rayse.",world:"Roshar",color:"#4a9eff",req:["row"]},
+  {era:"Modern",y:25,name:"Scadrial Era 2",desc:"Elendel industrialized. Wax and Wayne.",world:"Scadrial",color:"#c49a4d",req:["aol"]},
+  {era:"Modern",y:26,name:"Contest of Champions",desc:"Taravangian becomes Retribution. Dalinar dies.",world:"Roshar",color:"#4a9eff",req:["wat"],big:true},
+  {era:"Modern",y:27,name:"Sigzil Flees",desc:"Hoid passes Dawnshard to Sigzil. Retribution destroys Hoid's body.",world:"Roshar",color:"#4a9eff",req:["wat"]},
+  {era:"Future",y:35,name:"Tress's Adventure",desc:"Tress sails spore seas of Lumar. Narrated by Hoid.",world:"Lumar",color:"#4dc4b8",req:["tress"]},
+  {era:"Future",y:36,name:"Yumi & Nightmare Painter",desc:"Two cultures on Komashi linked by Virtuosity's Splinters.",world:"Komashi",color:"#ec4899",req:["yumi"]},
+  {era:"Future",y:40,name:"The Sunlit Man",desc:"Sigzil on Canticle. No longer holds the Dawnshard.",world:"Canticle",color:"#f97316",req:["sunlit"]},
+  {era:"Future",y:45,name:"Isles of the Emberdark",desc:"Dusk and Starling face galactic superpowers in the emberdark.",world:"First of the Sun",color:"#4dc470",req:["ember"]},
+];
+
+// Worlds data - keeping shards as expandable items
+const WD = [
+  {name:"Roshar",icon:"\u26C8",color:"#4a9eff",bg:"#1a2744",db:"Storm-ravaged world of stone and crem.",
+    ds:[{r:["twok"],t:"Highstorms carry Stormlight. Home to humans, parshmen, and spren."},{r:["wor"],t:"Spren bond with humans as Knights Radiant."},{r:["oath"],t:"Parshmen are Singers - Roshar's original inhabitants."},{r:["row"],t:"Anti-Investiture can wound Shards."},{r:["wat"],t:"Taravangian holds Odium and Honor as Retribution."}],
+    sh:[{name:"Honor",r:["twok"],d:"Oaths and bonds.",su:[{t:"Vessel: Tanavast",r:["wor"],c:"Known as the Almighty."},{t:"Splintered by Odium",r:["wor"],c:"The Stormfather is his remnant."},{t:"Dalinar held Honor",r:["wat"],c:"Briefly, before tricking Taravangian."}]},
+      {name:"Cultivation",r:["wor"],d:"Growth and transformation.",su:[{t:"Vessel: Koravellium Avast",r:["wat"],c:"A dragon."},{t:"The Nightwatcher",r:["oath"],c:"Dalinar's memory loss was Cultivation's doing."}]},
+      {name:"Odium",r:["twok"],d:"Divine hatred.",su:[{t:"Vessel: Rayse",r:["wor"],c:"Killed multiple Shards."},{t:"Taravangian ascends",r:["row"],c:"Killed Rayse."},{t:"Retribution",r:["wat"],c:"Holds both Odium and Honor."}]}],
+    mg:[{name:"Surgebinding",r:["twok"],d:"Fueled by Stormlight. Knights Radiant wield Surges.",su:[{t:"Nahel Bond",r:["wor"],c:"Human-spren symbiosis. Ideals strengthen the bond."},{t:"Ten Orders",r:["wor"],c:"Windrunners, Skybreakers, Dustbringers, Edgedancers, Truthwatchers, Lightweavers, Elsecallers, Willshapers, Stonewards, Bondsmiths"},{t:"Shardblades & Plate",r:["twok"],c:"Magical weapons and armor."},{t:"Living vs Dead Blades",r:["wor"],c:"Living = bonded spren. Dead = broken oaths."},{t:"True Nature of Plate",r:["row"],c:"Formed from lesser spren per order."}]},
+      {name:"Voidbinding",r:["oath"],d:"Fueled by Voidlight. Used by the Fused."},
+      {name:"Old Magic",r:["twok"],d:"Boon and curse from the Nightwatcher.",su:[{t:"Cultivation's Role",r:["oath"],c:"Sometimes intervenes directly."}]},
+      {name:"Fabrials",r:["twok"],d:"Spren in gemstones produce effects.",su:[{t:"Modern Fabrials",r:["row"],c:"Navani created Warlight and anti-Investiture fabrials."}]}],
+    bk:["twok","wor","edge","oath","dawn","row","wat"]},
+  {name:"Scadrial",icon:"\uD83C\uDF2B",color:"#c49a4d",bg:"#2a2019",db:"Created by two Shards working together.",
+    ds:[{r:["tfe"],t:"Lord Ruler reigned 1000 years. Ash and mist."},{r:["hoa"],t:"Sazed remade the world as Harmony."},{r:["aol"],t:"300 years later: industrialized."}],
+    sh:[{name:"Preservation",r:["tfe"],d:"Maintains and protects.",su:[{t:"Vessel: Leras",r:["hoa"],c:"Sacrificed himself."},{t:"Vin held Preservation",r:["hoa"],c:"Used it to destroy Ruin."}]},
+      {name:"Ruin",r:["tfe"],d:"Breaks down and destroys.",su:[{t:"Vessel: Ati",r:["hoa"],c:"Warped by the Shard."},{t:"Imprisoned",r:["woa"],c:"Well of Ascension was his prison."}]},
+      {name:"Harmony",r:["hoa"],d:"Sazed holds both Shards.",su:[{t:"Conflict",r:["aol"],c:"Can't act without both preserving and destroying."},{t:"Discord?",r:["bom"],c:"Ruin's influence growing."}]}],
+    mg:[{name:"Allomancy",r:["tfe"],d:"Burn metals for powers.",su:[{t:"Basic 8",r:["tfe"],c:"Iron/Steel, Tin/Pewter, Zinc/Brass, Copper/Bronze"},{t:"Higher Metals",r:["woa"],c:"Gold/Electrum, Aluminum/Duralumin, Cadmium/Bendalloy, Chromium/Nicrosil"},{t:"Atium",r:["tfe"],c:"See the future. Extremely rare."},{t:"God Metals",r:["hoa"],c:"Lerasium makes Mistborn. Allomancy is of Preservation."},{t:"Twinborn",r:["aol"],c:"One Allomantic + one Feruchemical power."}]},
+      {name:"Feruchemy",r:["tfe"],d:"Store attributes in metalminds.",su:[{t:"Compounding",r:["tfe"],c:"Both powers for same metal = amplified. Lord Ruler's immortality."}]},
+      {name:"Hemalurgy",r:["tfe"],d:"Metal spikes transfer powers.",su:[{t:"Cost",r:["hoa"],c:"Always lossy. Spikes open soul to Ruin's influence."}]}],
+    bk:["tfe","woa","hoa","aol","sos","bom","tlm","11th","jak","sh"]},
+  {name:"Sel",icon:"\u2726",color:"#e879a8",bg:"#2a1a24",db:"Location-based magic systems.",
+    ds:[{r:["elan"],t:"Elantris was home to silver-skinned beings. Reod broke the magic."},{r:["es"],t:"Forgers rewrite history of objects and souls."}],
+    sh:[{name:"Devotion",r:["elan"],d:"Once present on Sel.",su:[{t:"Killed by Odium",r:["sh"],c:"Power forced into Cognitive Realm."}]},{name:"Dominion",r:["elan"],d:"Once present on Sel.",su:[{t:"Killed alongside Devotion",r:["sh"],c:"Why magic is location-dependent."}]}],
+    mg:[{name:"AonDor",r:["elan"],d:"Drawing Aons for magical effects.",su:[{t:"The Reod",r:["elan"],c:"Earthquake broke the pattern. Fixed by adding the chasm."}]},{name:"Forgery",r:["es"],d:"Stamps rewrite Spiritual history.",su:[{t:"Soul Forgery",r:["es"],c:"Rewriting a person's soul. Must re-apply."}]},{name:"Dakhor & ChayShan",r:["elan"],d:"Bone-warping rituals and martial arts."}],
+    bk:["elan","es","hope"]},
+  {name:"Nalthis",icon:"\uD83C\uDF08",color:"#a78bfa",bg:"#1f1a2e",db:"Every person born with one Breath.",
+    ds:[{r:["warb"],t:"Accumulating Breaths grants Heightenings."}],
+    sh:[{name:"Endowment",r:["warb"],d:"Bestowing gifts. Vessel: Edgli.",su:[{t:"The Returned",r:["warb"],c:"Brought back with divine Breath."}]}],
+    mg:[{name:"Awakening",r:["warb"],d:"Breath + color to animate objects.",su:[{t:"Heightenings",r:["warb"],c:"50: Aura, 200: Pitch, 600: Color, 1000: Life sense, 2000: Agelessness"},{t:"Nightblood",r:["warb"],c:"Sentient sword. 1000 Breaths. Devours Investiture."}]}],
+    bk:["warb"]},
+  {name:"Taldain",icon:"\u2600",color:"#f59e0b",bg:"#2a2210",db:"Tidally locked world.",
+    ds:[{r:["ws_ex"],t:"Dayside: supergiant. Darkside: white dwarf."}],
+    sh:[{name:"Autonomy",r:["ws_ex"],d:"Independence. Vessel: Bavadin.",su:[{t:"Isolation",r:["ws_ex"],c:"Taldain cut off from Cosmere."},{t:"Avatars",r:["bom"],c:"Sends avatars to other worlds."},{t:"Scadrial",r:["tlm"],c:"Attempted invasion via the Set."}]}],
+    mg:[{name:"Sand Mastery",r:["ws_ex"],d:"Control sun-charged sand."},{name:"Starmarks",r:["ws_ex"],d:"Darkside tattoo magic."}],
+    bk:["ws_ex"]},
+  {name:"Threnody",icon:"\uD83D\uDC7B",color:"#94a3b8",bg:"#1a1d22",db:"Warped by Shard clash.",
+    ds:[{r:["shadows"],t:"Forests of Hell haunted by Shades. Silver protects."}],
+    sh:[{name:"Ambition",r:["shadows"],d:"Killed by Odium.",su:[{t:"Wounding",r:["shadows"],c:"Clash created the Shades."}]}],
+    mg:[{name:"Simple Rules",r:["shadows"],d:"No fire, blood, or running at night.",su:[{t:"Silver",r:["shadows"],c:"Repels Shades."}]}],
+    bk:["shadows"]},
+  {name:"First of the Sun",icon:"\uD83D\uDC26",color:"#4dc470",bg:"#1a2a1e",db:"Deadly tropical islands.",
+    ds:[{r:["6th"],t:"Trappers bond with magical Aviar birds."},{r:["ember"],t:"Spacefaring civilizations want the Aviar."}],
+    sh:[{name:"No full Shard",r:["6th"],d:"Patji has Investiture.",su:[{t:"Autonomy's Avatar",r:["bom"],c:"Patji is an avatar."}]}],
+    mg:[{name:"Aviar Bonding",r:["6th"],d:"Birds gain abilities from worms.",su:[{t:"Abilities",r:["6th"],c:"Kokerlii: hide mind. Sak: see danger."}]}],
+    bk:["6th","ember"]},
+  {name:"Lumar",icon:"\uD83C\uDF0A",color:"#4dc4b8",bg:"#1a2a2a",db:"Spore seas and twelve moons.",
+    ds:[{r:["tress"],t:"Twelve moons rain spores that react to water."}],
+    sh:[{name:"No Shard",r:["tress"],d:"Aethers present.",su:[]}],
+    mg:[{name:"Spore Magic",r:["tress"],d:"12 spore types from 12 moons.",su:[{t:"Types",r:["tress"],c:"Verdant: vines. Zephyr: air. Roseite: crystal. Midnight: Commandable."}]}],
+    bk:["tress"]},
+  {name:"Komashi",icon:"\uD83C\uDFA8",color:"#ec4899",bg:"#2a1a22",db:"Two linked cultures.",
+    ds:[{r:["yumi"],t:"Spirits summoned by stone-stacking; nightmares painted to contain them."}],
+    sh:[{name:"Virtuosity",r:["yumi"],d:"Voluntarily Splintered.",su:[{t:"Splinters",r:["yumi"],c:"Became spirits and nightmares."}]}],
+    mg:[{name:"Spirit Summoning",r:["yumi"],d:"Stack stones for spirits."},{name:"Nightmare Painting",r:["yumi"],d:"Ink traps corrupted Splinters."}],
+    bk:["yumi"]},
+  {name:"Canticle",icon:"\uD83D\uDD25",color:"#f97316",bg:"#2a1c10",db:"Far-future world.",
+    ds:[{r:["sunlit"],t:"Sun incinerates everything. Race ahead of sunrise."}],
+    sh:[{name:"No known Shard",r:["sunlit"],d:"",su:[]}],
+    mg:[{name:"Sunhearts",r:["sunlit"],d:"Sun-charged plants develop Investiture cores."}],
+    bk:["sunlit"]},
+];
+
+const SER = ["Stormlight Archive","Mistborn Era 1","Mistborn Era 2","Standalone","Secret Projects"];
+const SC = {
+  "Stormlight Archive":{bg:"#1a2744",a:"#4a9eff",g:"rgba(74,158,255,0.15)"},
+  "Mistborn Era 1":{bg:"#2a1a1a",a:"#c44d4d",g:"rgba(196,77,77,0.15)"},
+  "Mistborn Era 2":{bg:"#2a2019",a:"#c49a4d",g:"rgba(196,154,77,0.15)"},
+  "Standalone":{bg:"#1a2a1e",a:"#4dc470",g:"rgba(77,196,112,0.15)"},
+  "Secret Projects":{bg:"#1a2a2a",a:"#4dc4b8",g:"rgba(77,196,184,0.15)"},
+  "AU":{bg:"#251a2a",a:"#9b4dc4",g:"rgba(155,77,196,0.15)"},
+};
+const WI = {"Roshar":"\u26C8","Scadrial":"\uD83C\uDF2B","Sel":"\u2726","Nalthis":"\uD83C\uDF08","Threnody":"\uD83D\uDC7B","First of the Sun":"\uD83D\uDC26","Taldain":"\u2600","Lumar":"\uD83C\uDF0A","Komashi":"\uD83C\uDFA8","Canticle":"\uD83D\uDD25"};
+const fm = n => n.toLocaleString();
+
+// ── Shared UI ──
+function Toggle({on, set}) {
+  return (
+    <div style={{display:"flex",justifyContent:"center",marginBottom:"16px",gap:"12px",alignItems:"center"}}>
+      <span style={{fontSize:"13px",color:"#64748b"}}>Progressive</span>
+      <button onClick={function(){set(!on);}} style={{width:"48px",height:"26px",borderRadius:"13px",border:"none",cursor:"pointer",background:on?"#4a9eff":"#334155",position:"relative"}}>
+        <div style={{width:"20px",height:"20px",borderRadius:"50%",background:"#fff",position:"absolute",top:"3px",left:on?"25px":"3px"}} />
+      </button>
+      <span style={{fontSize:"13px",color:on?"#4a9eff":"#64748b"}}>Show all</span>
+    </div>
+  );
+}
+
+function Sec({title, color, desc, children}) {
+  var s = useState(false);
+  var open = s[0];
+  var setOpen = s[1];
+  return (
+    <div style={{marginBottom:"8px",background:color+"06",borderRadius:"8px",border:"1px solid "+color+"12",overflow:"hidden"}}>
+      <button onClick={function(){setOpen(!open);}} style={{width:"100%",padding:"10px 14px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",textAlign:"left"}}>
+        <div>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"14px",fontWeight:600,color:color}}>{title}</div>
+          {desc && <div style={{fontSize:"12px",color:"#94a3b8",marginTop:"2px"}}>{desc}</div>}
+        </div>
+        {children && <span style={{fontSize:"12px",color:"#64748b",transform:open?"rotate(180deg)":"rotate(0deg)",flexShrink:0}}>v</span>}
+      </button>
+      {open && children && <div style={{padding:"0 14px 10px"}}>{children}</div>}
+    </div>
+  );
+}
+
+function SubSec({title, color, content}) {
+  var s = useState(false);
+  var open = s[0];
+  var setOpen = s[1];
+  return (
+    <div>
+      <button onClick={function(){setOpen(!open);}} style={{width:"100%",padding:"6px 0",background:"transparent",border:"none",borderTop:"1px solid "+color+"10",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontSize:"12px",color:color,fontFamily:"'Cinzel',serif"}}>{title}</span>
+        <span style={{fontSize:"11px",color:"#64748b",transform:open?"rotate(180deg)":"rotate(0deg)"}}>v</span>
+      </button>
+      {open && <p style={{fontSize:"12px",color:"#94a3b8",lineHeight:1.7,margin:"4px 0 8px",whiteSpace:"pre-line"}}>{content}</p>}
+    </div>
+  );
+}
+
+// ── Tab 1: Reading List ──
+function TabList({books, setBooks, au, setAu, filter, setFilter}) {
+  function tR(id) { setBooks(function(p){return p.map(function(b){return b.id===id?Object.assign({},b,{read:!b.read,owned:!b.read?true:b.owned}):b;});}); }
+  function tO(id) { setBooks(function(p){return p.map(function(b){return b.id===id?Object.assign({},b,{owned:!b.owned}):b;});}); }
+  function tA(id) { setAu(function(p){return p.map(function(s){return s.id===id?Object.assign({},s,{read:!s.read}):s;});}); }
+  var expState = useState({});
+  var exp = expState[0];
+  function toggleExp(k) { expState[1](function(p){var n={};for(var x in p)n[x]=p[x];n[k]=!p[k];return n;}); }
+
+  var fil = books.filter(function(b) {
+    if (filter==="read") return b.read;
+    if (filter==="unread") return !b.read;
+    if (filter==="owned") return b.owned && !b.read;
+    return true;
+  });
+  var auFil = au.filter(function(s) {
+    if (filter==="read") return s.read;
+    if (filter==="unread") return !s.read;
+    return filter==="all";
+  });
+
+  var all = books.concat(au);
+  var RO = ["tlm","tress","yumi","shadows","jak","11th","ws_ex","sunlit","ember"];
+  var nU = RO.filter(function(id){var b=all.find(function(x){return x.id===id;});return b&&!b.read;});
+
+  var auC = SC["AU"];
+  var auRead = au.filter(function(s){return s.read;}).length;
+
+  function renderBook(bk, c, togRead, togOwn, i, total) {
+    return (
+      <div key={bk.id} style={{display:"flex",alignItems:"center",gap:"12px",padding:"12px 20px",borderBottom:i<total-1?"1px solid "+c.a+"11":"none",opacity:bk.read?0.55:1}}>
+        <button onClick={function(){togRead(bk.id);}} style={{width:"22px",height:"22px",borderRadius:"50%",border:bk.read?"2px solid "+c.a:"2px solid #475569",background:bk.read?c.a:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"11px",color:bk.read?"#fff":"transparent"}}>{"✓"}</button>
+        <span style={{fontSize:"16px",flexShrink:0,width:"24px",textAlign:"center"}}>{WI[bk.world]||"."}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"15px",fontWeight:600,color:bk.read?"#94a3b8":"#e2e8f0",textDecoration:bk.read?"line-through":"none"}}>{bk.title}</div>
+          <div style={{fontSize:"12px",color:"#64748b",marginTop:"2px"}}>
+            {bk.ps && <span style={{color:c.a,opacity:0.7}}>{bk.ps} · </span>}
+            {bk.world} · {bk.type} · {bk.pages} pp
+            {bk.note && <span style={{color:c.a,opacity:0.6}}> · {bk.note}</span>}
+            {bk.sn && <span style={{color:"#f59e0b",opacity:0.8}}> · {"⚠"} {bk.sn}</span>}
+          </div>
+        </div>
+        {!bk.read && togOwn && <button onClick={function(){togOwn(bk.id);}} style={{padding:"4px 10px",borderRadius:"6px",border:bk.owned?"1px solid "+c.a+"44":"1px solid #334155",background:bk.owned?c.a+"11":"transparent",color:bk.owned?c.a:"#475569",fontSize:"11px",fontFamily:"'Cinzel',serif",cursor:"pointer",flexShrink:0}}>{bk.owned?"OWNED":"NEED"}</button>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:"8px",justifyContent:"center",flexWrap:"wrap",marginBottom:"24px"}}>
+        {[{k:"all",l:"All"},{k:"read",l:"Read"},{k:"unread",l:"Unread"},{k:"owned",l:"Owned & Unread"}].map(function(f) {
+          return <button key={f.k} onClick={function(){setFilter(f.k);}} style={{padding:"6px 16px",borderRadius:"20px",border:filter===f.k?"1px solid #4a9eff":"1px solid #334155",background:filter===f.k?"rgba(74,158,255,0.12)":"transparent",color:filter===f.k?"#4a9eff":"#94a3b8",fontSize:"12px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>{f.l}</button>;
+        })}
+      </div>
+
+      {nU.length > 0 && filter !== "read" && (
+        <div style={{margin:"0 0 24px",padding:"20px 24px",background:"linear-gradient(135deg,rgba(74,158,255,0.06),rgba(155,77,196,0.06))",border:"1px solid rgba(74,158,255,0.15)",borderRadius:"12px"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"11px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",marginBottom:"12px"}}>Suggested Reading Order</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"8px",alignItems:"center"}}>
+            {nU.map(function(id, i) {
+              var it = all.find(function(x){return x.id===id;});
+              if (!it) return null;
+              var c = it.series ? SC[it.series] : auC;
+              return (
+                <div key={id} style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                  <span style={{padding:"4px 12px",borderRadius:"6px",background:c.g,border:"1px solid "+c.a+"33",color:c.a,fontSize:"13px",whiteSpace:"nowrap"}}>{(i+1)+". "+it.title+(it.owned?" \uD83D\uDCD6":"")}</span>
+                  {i < nU.length - 1 && <span style={{color:"#334155",fontSize:"10px"}}>{"→"}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {SER.map(function(series) {
+        var sb = fil.filter(function(b){return b.series===series;}).sort(function(a,b){return a.so-b.so;});
+        if (sb.length === 0) return null;
+        var c = SC[series];
+        var ri = sb.filter(function(b){return b.read;}).length;
+        var sp = sb.reduce(function(s,b){return s+b.pages;},0);
+        var spr = sb.filter(function(b){return b.read;}).reduce(function(s,b){return s+b.pages;},0);
+        var isE = exp[series] !== false;
+        return (
+          <div key={series} style={{marginBottom:"16px"}}>
+            <button onClick={function(){toggleExp(series);}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:c.bg,border:"1px solid "+c.a+"22",borderRadius:isE?"10px 10px 0 0":"10px",cursor:"pointer"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+                <div style={{width:"3px",height:"24px",background:c.a,borderRadius:"2px"}} />
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:"15px",fontWeight:600,color:"#e2e8f0"}}>{series}</span>
+                <span style={{fontSize:"12px",color:c.a,opacity:0.7}}>{ri+"/"+sb.length}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <span style={{fontSize:"12px",color:"#64748b"}}>{fm(spr)+"/"+fm(sp)+" pp"}</span>
+                <span style={{color:"#64748b",fontSize:"14px",transform:isE?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+              </div>
+            </button>
+            {isE && (
+              <div style={{background:c.bg+"88",border:"1px solid "+c.a+"22",borderTop:"none",borderRadius:"0 0 10px 10px",overflow:"hidden"}}>
+                {sb.map(function(bk, i) { return renderBook(bk, c, tR, tO, i, sb.length); })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {(filter === "all" || auFil.length > 0) && (
+        <div style={{marginBottom:"16px"}}>
+          <button onClick={function(){toggleExp("AU");}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:auC.bg,border:"1px solid "+auC.a+"22",borderRadius:exp["AU"]!==false?"10px 10px 0 0":"10px",cursor:"pointer"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+              <div style={{width:"3px",height:"24px",background:auC.a,borderRadius:"2px"}} />
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:"15px",fontWeight:600,color:"#e2e8f0"}}>Arcanum Unbounded</span>
+              <span style={{fontSize:"12px",color:auC.a,opacity:0.7}}>{auRead+"/"+au.length}</span>
+            </div>
+            <span style={{color:"#64748b",fontSize:"14px",transform:exp["AU"]!==false?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+          </button>
+          {exp["AU"] !== false && (
+            <div style={{background:auC.bg+"88",border:"1px solid "+auC.a+"22",borderTop:"none",borderRadius:"0 0 10px 10px",overflow:"hidden"}}>
+              <div style={{padding:"10px 20px 6px",fontSize:"12px",color:"#64748b",fontStyle:"italic"}}>A collection of Cosmere short fiction.</div>
+              {auFil.map(function(st, i) { return renderBook(st, auC, tA, null, i, auFil.length); })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tab 2: Worlds ──
+function TabWorlds({books, sa, setSA, sp}) {
+  var u = sp.u;
+  var expanded = useState(null);
+  var sel = expanded[0];
+  var setSel = expanded[1];
+
+  return (
+    <div>
+      <Toggle on={sa} set={setSA} />
+      {!sa && <p style={{textAlign:"center",color:"#64748b",fontSize:"12px",marginBottom:"20px",fontStyle:"italic"}}>Lore reveals as you read.</p>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:"16px"}}>
+        {WD.map(function(w) {
+          var isO = sel === w.name;
+          var wb = w.bk.map(function(id){return books.find(function(b){return b.id===id;});}).filter(Boolean);
+          var anyR = wb.some(function(b){return b.read;}) || sa;
+          var rc = wb.filter(function(b){return b.read;}).length;
+
+          if (!anyR) return (
+            <div key={w.name} style={{background:w.bg,border:"1px solid "+w.color+"15",borderRadius:"12px",padding:"20px",opacity:0.4}}>
+              <div style={{display:"flex",alignItems:"center",gap:"14px"}}>
+                <div style={{width:"48px",height:"48px",borderRadius:"50%",background:w.color+"10",border:"2px solid "+w.color+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px"}}>{w.icon}</div>
+                <div><div style={{fontFamily:"'Cinzel',serif",fontSize:"18px",fontWeight:600,color:"#475569"}}>{w.name}</div><div style={{fontSize:"12px",color:"#334155"}}>Read books to unlock</div></div>
+              </div>
+            </div>
+          );
+
+          var uD = w.ds.filter(function(d){return u(d.r);});
+          var uSh = w.sh.filter(function(s){return u(s.r);});
+          var uMg = w.mg.filter(function(m){return u(m.r);});
+
+          return (
+            <div key={w.name} onClick={function(){if(!isO)setSel(w.name);}} style={{background:w.bg,border:"1px solid "+w.color+(isO?"44":"22"),borderRadius:"12px",cursor:isO?"default":"pointer",overflow:"hidden"}}>
+              <div style={{padding:"20px 20px 16px",display:"flex",alignItems:"center",gap:"14px",cursor:"pointer"}} onClick={function(){setSel(isO?null:w.name);}}>
+                <div style={{width:"48px",height:"48px",borderRadius:"50%",background:w.color+"18",border:"2px solid "+w.color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",flexShrink:0}}>{w.icon}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:"18px",fontWeight:600,color:w.color}}>{w.name}</div>
+                  <div style={{fontSize:"12px",color:"#64748b"}}>{rc+"/"+wb.length+" books"}</div>
+                </div>
+                <span style={{color:"#64748b",fontSize:"14px",transform:isO?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+              </div>
+              {isO && (
+                <div style={{padding:"0 20px 20px"}}>
+                  <p style={{fontSize:"13px",color:"#94a3b8",lineHeight:1.6,margin:"0 0 8px"}}>{w.db}</p>
+                  {uD.map(function(d,i){return <p key={i} style={{fontSize:"13px",color:"#cbd5e1",lineHeight:1.6,margin:"0 0 8px"}}>{d.t}</p>;})}
+
+                  {uSh.length > 0 && (
+                    <div style={{marginTop:"12px",marginBottom:"14px"}}>
+                      <div style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:w.color,fontFamily:"'Cinzel',serif",marginBottom:"8px",opacity:0.8}}>Shards</div>
+                      {uSh.map(function(s) {
+                        var uSu = (s.su||[]).filter(function(sub){return u(sub.r);});
+                        return (
+                          <Sec key={s.name} title={"◆ "+s.name} color={w.color} desc={s.d}>
+                            {uSu.length > 0 ? uSu.map(function(sub){return <SubSec key={sub.t} title={sub.t} color={w.color} content={sub.c} />;}) : null}
+                          </Sec>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {uMg.length > 0 && (
+                    <div style={{marginBottom:"14px"}}>
+                      <div style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:w.color,fontFamily:"'Cinzel',serif",marginBottom:"8px",opacity:0.8}}>Magic Systems</div>
+                      {uMg.map(function(m) {
+                        var uSu = (m.su||[]).filter(function(sub){return u(sub.r);});
+                        return (
+                          <Sec key={m.name} title={m.name} color={w.color} desc={m.d}>
+                            {uSu.length > 0 ? uSu.map(function(sub){return <SubSec key={sub.t} title={sub.t} color={w.color} content={sub.c} />;}) : null}
+                          </Sec>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{marginTop:"14px"}}>
+                    <div style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:w.color,fontFamily:"'Cinzel',serif",marginBottom:"8px",opacity:0.8}}>Books</div>
+                    {wb.map(function(bk) {
+                      return (
+                        <div key={bk.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"5px 0",opacity:bk.read?0.5:1}}>
+                          <span style={{width:"14px",height:"14px",borderRadius:"50%",border:"2px solid "+(bk.read?w.color:"#475569"),background:bk.read?w.color:"transparent",flexShrink:0,fontSize:"8px",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{bk.read?"✓":""}</span>
+                          <span style={{fontSize:"13px",color:bk.read?"#64748b":"#e2e8f0"}}>{bk.title}</span>
+                          <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{bk.pages+" pp"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Star Map Component ──
+var PLANETS = [
+  {name:"Roshar",x:78,y:22,r:18,color:"#4a9eff",rA:["twok"],sys:"Rosharan"},
+  {name:"Scadrial",x:35,y:78,r:16,color:"#c49a4d",rA:["tfe"],sys:"Scadrian"},
+  {name:"Sel",x:62,y:48,r:14,color:"#e879a8",rA:["elan"],sys:"Selish"},
+  {name:"Nalthis",x:12,y:18,r:12,color:"#a78bfa",rA:["warb"],sys:"Nalthian"},
+  {name:"Taldain",x:42,y:30,r:11,color:"#f59e0b",rA:["ws_ex"],sys:"Taldain"},
+  {name:"Threnody",x:38,y:55,r:10,color:"#64748b",rA:["shadows"],sys:"Threnodite"},
+  {name:"First of the Sun",x:28,y:15,r:9,color:"#4dc470",rA:["6th"],sys:"Drominad"},
+  {name:"Lumar",x:14,y:72,r:10,color:"#4dc4b8",rA:["tress"],sys:"Lumar"},
+  {name:"Komashi",x:12,y:44,r:9,color:"#ec4899",rA:["yumi"],sys:"UTol"},
+  {name:"Canticle",x:58,y:70,r:8,color:"#f97316",rA:["sunlit"],sys:"Unknown"},
+  {name:"Yolen",x:48,y:42,r:8,color:"#e2e8f0",rA:[],sys:"Yolen",isY:true},
+];
+var CONNS = [
+  {f:"Yolen",t:"Roshar",r:["sh"]},{f:"Yolen",t:"Scadrial",r:["sh"]},
+  {f:"Yolen",t:"Sel",r:["sh"]},{f:"Yolen",t:"Nalthis",r:["sh"]},
+  {f:"Taldain",t:"First of the Sun",r:["bom"]},{f:"Taldain",t:"Scadrial",r:["bom"]},
+];
+
+function makeStars() {
+  var stars = [];
+  for (var i = 0; i < 60; i++) {
+    stars.push({
+      cx: (i * 17 + 7) % 100,
+      cy: (i * 23 + 11) % 100,
+      r: 0.1 + ((i * 7) % 10) * 0.03,
+      fill: i % 7 === 0 ? "#fbbf24" : i % 11 === 0 ? "#ef4444" : "#e2e8f0",
+      op: 0.15 + ((i * 3) % 10) * 0.035
+    });
+  }
+  return stars;
+}
+var STARS = makeStars();
+
+function ProgressArc(props) {
+  if (props.pct <= 0 || props.pct >= 1) return null;
+  var circ = 2 * Math.PI * props.r;
+  return (
+    <circle cx={props.cx} cy={props.cy} r={props.r} fill="none" stroke={props.color}
+      strokeWidth="0.5" strokeDasharray={circ * props.pct + " " + circ * (1 - props.pct)}
+      strokeDashoffset={circ * 0.25} opacity="0.5"
+      transform={"rotate(-90 " + props.cx + " " + props.cy + ")"} />
+  );
+}
+
+function PlanetDetail(props) {
+  var sel = props.sel;
+  var books = props.books;
+  var u = props.u;
+  if (!sel) return null;
+  var planet = PLANETS.find(function(p){return p.name === sel;});
+  var world = WD.find(function(w){return w.name === sel;});
+  if (!planet || !world) return null;
+  var wb = books.filter(function(b){return b.world === sel;});
+  var uD = world.ds.filter(function(d){return u(d.r);});
+  var uSh = world.sh.filter(function(s){return u(s.r);});
+
+  return (
+    <div style={{maxWidth:"800px",margin:"16px auto 0",padding:"20px 24px",background:world.bg,border:"1px solid " + world.color + "33",borderRadius:"12px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:"14px",marginBottom:"12px"}}>
+        <div style={{width:"40px",height:"40px",borderRadius:"50%",background:world.color+"18",border:"2px solid "+world.color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>{world.icon}</div>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"20px",fontWeight:600,color:world.color}}>{world.name}</div>
+          <div style={{fontSize:"12px",color:"#64748b"}}>{planet.sys + " System"}</div>
+        </div>
+        <button onClick={function(){props.close();}} style={{background:"none",border:"1px solid #334155",borderRadius:"6px",padding:"4px 12px",color:"#64748b",cursor:"pointer",fontSize:"12px"}}>X</button>
+      </div>
+      <p style={{fontSize:"13px",color:"#94a3b8",lineHeight:1.6,margin:"0 0 8px"}}>{world.db}</p>
+      {uD.map(function(d,i){return <p key={i} style={{fontSize:"13px",color:"#cbd5e1",lineHeight:1.6,margin:"0 0 8px"}}>{d.t}</p>;})}
+      {uSh.length > 0 && (
+        <div style={{marginTop:"8px"}}>
+          <span style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:world.color,fontFamily:"'Cinzel',serif",opacity:0.8}}>Shards: </span>
+          <span style={{fontSize:"13px",color:"#cbd5e1"}}>{uSh.map(function(s){return s.name;}).join(", ")}</span>
+        </div>
+      )}
+      {wb.length > 0 && (
+        <div style={{marginTop:"10px"}}>
+          <div style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:world.color,fontFamily:"'Cinzel',serif",marginBottom:"6px",opacity:0.8}}>Books</div>
+          {wb.map(function(bk) {
+            return (
+              <div key={bk.id} style={{display:"flex",alignItems:"center",gap:"8px",padding:"4px 0",opacity:bk.read?0.5:1}}>
+                <span style={{width:"12px",height:"12px",borderRadius:"50%",border:"2px solid "+(bk.read?world.color:"#475569"),background:bk.read?world.color:"transparent",flexShrink:0,fontSize:"7px",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{bk.read?"✓":""}</span>
+                <span style={{fontSize:"13px",color:bk.read?"#64748b":"#e2e8f0"}}>{bk.title}</span>
+                <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{bk.pages+" pp"}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p style={{fontSize:"11px",color:"#475569",marginTop:"10px",fontStyle:"italic"}}>See Worlds tab for magic systems.</p>
+    </div>
+  );
+}
+
+function StarMap(props) {
+  var books = props.books;
+  var u = props.sp.u;
+  var uA = props.sp.uA;
+  var selState = useState(null);
+  var sel = selState[0];
+  var setSel = selState[1];
+
+  function gP(name) { return PLANETS.find(function(p){return p.name===name;}); }
+
+  return (
+    <div>
+      <div style={{position:"relative",width:"100%",maxWidth:"800px",margin:"0 auto",aspectRatio:"4/3",background:"radial-gradient(ellipse at 50% 40%,#0f1729,#080c18 50%,#050810)",borderRadius:"16px",border:"1px solid #1e293b",overflow:"hidden"}}>
+        <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%"}}>
+          {STARS.map(function(s, i) {
+            return <circle key={"st"+i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} opacity={s.op} />;
+          })}
+          {CONNS.map(function(cn, i) {
+            if (!u(cn.r)) return null;
+            var a = gP(cn.f);
+            var b = gP(cn.t);
+            return <line key={"cn"+i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#334155" strokeWidth="0.3" strokeDasharray="1,1" opacity="0.5" />;
+          })}
+          {PLANETS.map(function(p) {
+            var vis = p.isY || uA(p.rA);
+            var isSel = sel === p.name;
+            var wb = books.filter(function(b){return b.world === p.name;});
+            var rP = wb.length > 0 ? wb.filter(function(b){return b.read;}).length / wb.length : 0;
+            var pr = p.r * 0.35;
+
+            if (p.isY) {
+              return (
+                <g key={p.name} onClick={function(){setSel(sel===p.name?null:p.name);}} style={{cursor:"pointer"}}>
+                  <circle cx={p.x} cy={p.y} r={p.r*0.4} fill="none" stroke="#e2e8f033" strokeWidth="0.3" strokeDasharray="0.8,0.8" />
+                  <circle cx={p.x} cy={p.y} r={2} fill="#e2e8f0" opacity="0.6" />
+                  <text x={p.x} y={p.y+5} textAnchor="middle" fill="#64748b" fontSize="2.5" fontFamily="serif" style={{letterSpacing:"0.15em"}}>YOLEN</text>
+                  <text x={p.x} y={p.y+7.5} textAnchor="middle" fill="#475569" fontSize="1.6" fontFamily="serif">Origin</text>
+                </g>
+              );
+            }
+
+            return (
+              <g key={p.name}>
+                {vis && <circle cx={p.x} cy={p.y} r={p.r*0.6} fill={p.color+"08"} />}
+                {vis && <circle cx={p.x} cy={p.y} r={p.r*0.5} fill="none" stroke={p.color+"33"} strokeWidth="0.4" />}
+                <circle cx={p.x} cy={p.y} r={vis ? pr : pr*0.6}
+                  fill={vis ? p.color : "#1e293b"} opacity={vis ? 0.9 : 0.3}
+                  stroke={isSel ? p.color : "none"} strokeWidth="0.8"
+                  onClick={function(){if(vis)setSel(sel===p.name?null:p.name);}}
+                  style={{cursor:vis?"pointer":"default"}} />
+                {vis && <ProgressArc cx={p.x} cy={p.y} r={p.r*0.42} pct={rP} color={p.color} />}
+                {vis ? (
+                  <text x={p.x} y={p.y+p.r*0.5+3.5} textAnchor="middle" fill={p.color} fontSize="2.6" fontFamily="serif" fontWeight="600" style={{letterSpacing:"0.1em"}}>{p.name.toUpperCase()}</text>
+                ) : (
+                  <text x={p.x} y={p.y+pr*0.6+3} textAnchor="middle" fill="#334155" fontSize="2.2" fontFamily="serif">???</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <PlanetDetail sel={sel} books={books} u={u} close={function(){setSel(null);}} />
+      <div style={{maxWidth:"800px",margin:"12px auto 0",display:"flex",justifyContent:"center",gap:"20px",flexWrap:"wrap",fontSize:"11px",color:"#64748b"}}>
+        <span>Arc = read progress</span>
+        <span style={{color:"#334155"}}>--- Connection</span>
+        <span>??? = unread</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Tab 3: Shards & Map ──
+function TabShards({books, sa, setSA, sp}) {
+  var u = sp.u;
+  var uA = sp.uA;
+  var expState = useState({});
+  var exp = expState[0];
+  function tE(k) { expState[1](function(p){var n={};for(var x in p)n[x]=p[x];n[k]=!p[k];return n;}); }
+  var shOpen = useState(false);
+  var dsOpen = useState(false);
+
+  var vis = SHARDS.filter(function(s){return u(s.rN);});
+  var stC = function(s){return s.indexOf("Splintered")>=0?"#ef4444":s.indexOf("Merged")>=0?"#a78bfa":"#4dc470";};
+
+  return (
+    <div>
+      <Toggle on={sa} set={setSA} />
+
+      {/* Shard table */}
+      <div style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
+        <button onClick={function(){shOpen[1](!shOpen[0]);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",fontWeight:600}}>{"◆ 16 Shards of Adonalsium ("+vis.length+"/16)"}</span>
+          <span style={{color:"#64748b",fontSize:"14px",transform:shOpen[0]?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+        </button>
+        {shOpen[0] && (
+          <div style={{padding:"0 16px 16px",overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px"}}>
+              <thead><tr style={{borderBottom:"1px solid #1e293b"}}>
+                {["#","Shard","Intent","Planet","Vessel","Status"].map(function(h){return <th key={h} style={{padding:"8px 10px",textAlign:"left",color:"#64748b",fontFamily:"'Cinzel',serif",fontSize:"10px",letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>{h}</th>;})}
+              </tr></thead>
+              <tbody>
+                {vis.map(function(s) {
+                  var pl = u(s.rP) ? s.planet : "???";
+                  var vs = u(s.rV) ? s.vessel : "???";
+                  var st = u(s.rS) ? s.status : "???";
+                  if (s.sA && u(s.sA.r)) st = s.sA.t;
+                  var notes = s.notes.filter(function(n){return u(n.r);});
+                  var isE = exp["s"+s.n];
+                  return (
+                    <tr key={s.n} style={{borderBottom:"1px solid #1e293b11",cursor:notes.length?"pointer":"default"}} onClick={function(){if(notes.length)tE("s"+s.n);}}>
+                      <td style={{padding:"8px 10px",color:"#475569"}}>{s.n}</td>
+                      <td style={{padding:"8px 10px",color:"#e2e8f0",fontWeight:600}}>
+                        {s.name}
+                        {notes.length > 0 && <span style={{color:"#475569",fontSize:"10px",marginLeft:"6px"}}>{isE?"▴":"▾"}</span>}
+                        {isE && <div style={{fontWeight:400,marginTop:"6px"}}>{notes.map(function(n,i){return <div key={i} style={{fontSize:"12px",color:"#94a3b8",padding:"2px 0"}}>{"· "+n.t}</div>;})}</div>}
+                      </td>
+                      <td style={{padding:"8px 10px",color:"#94a3b8"}}>{s.intent}</td>
+                      <td style={{padding:"8px 10px",color:pl==="???"?"#334155":"#94a3b8"}}>{pl}</td>
+                      <td style={{padding:"8px 10px",color:vs==="???"?"#334155":"#94a3b8"}}>{vs}</td>
+                      <td style={{padding:"8px 10px"}}><span style={{color:st==="???"?"#334155":stC(st),fontSize:"12px"}}>{st}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Dawnshard table */}
+      {(u(["dawn"]) || sa) && (
+        <div style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
+          <button onClick={function(){dsOpen[1](!dsOpen[0]);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#a78bfa",fontFamily:"'Cinzel',serif",fontWeight:600}}>{"✦ The Four Dawnshards"}</span>
+            <span style={{color:"#64748b",fontSize:"14px",transform:dsOpen[0]?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+          </button>
+          {dsOpen[0] && (
+            <div style={{padding:"0 16px 16px"}}>
+              <p style={{fontSize:"12px",color:"#64748b",marginBottom:"12px"}}>Primal Commands used to create and Shatter Adonalsium.</p>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px"}}>
+                <thead><tr style={{borderBottom:"1px solid #1e293b"}}>
+                  {["#","Command","Holder","Location"].map(function(h){return <th key={h} style={{padding:"8px 10px",textAlign:"left",color:"#64748b",fontFamily:"'Cinzel',serif",fontSize:"10px",letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>{h}</th>;})}
+                </tr></thead>
+                <tbody>
+                  {DAWNSHARDS.map(function(d) {
+                    var sc = u(d.rC);
+                    var sh = u(d.rH);
+                    var notes = d.notes.filter(function(n){return u(n.r);});
+                    var isE = exp["d"+d.n];
+                    return (
+                      <tr key={d.n} style={{borderBottom:"1px solid #1e293b11",cursor:notes.length?"pointer":"default"}} onClick={function(){if(notes.length)tE("d"+d.n);}}>
+                        <td style={{padding:"8px 10px",color:"#475569"}}>{d.n}</td>
+                        <td style={{padding:"8px 10px",color:sc?"#a78bfa":"#334155",fontWeight:600}}>
+                          {sc ? d.cmd : "???"}
+                          {notes.length > 0 && <span style={{color:"#475569",fontSize:"10px",marginLeft:"6px"}}>{isE?"▴":"▾"}</span>}
+                          {isE && <div style={{fontWeight:400,marginTop:"6px"}}>{notes.map(function(n,i){return <div key={i} style={{fontSize:"12px",color:"#94a3b8",padding:"2px 0"}}>{"· "+n.t}</div>;})}</div>}
+                        </td>
+                        <td style={{padding:"8px 10px",color:sh?"#94a3b8":"#334155"}}>{sh?d.holder:"???"}</td>
+                        <td style={{padding:"8px 10px",color:sh?"#94a3b8":"#334155"}}>{sh?d.loc:"???"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",marginBottom:"8px",marginTop:"8px"}}>Cosmere Star Map</div>
+      <p style={{textAlign:"center",color:"#64748b",fontSize:"12px",marginBottom:"12px",fontStyle:"italic"}}>Tap a planet to see details. Unread worlds appear dim.</p>
+      <StarMap books={books} sp={sp} />
+    </div>
+  );
+}
+
+// ── Tab 4: Hoid ──
+// Hoid's abilities data with spoiler gates
+var HOID_ABILITIES = [
+  {name:"Illusion Magic",nameAfter:{t:"Lightweaving (Yolish)",r:["sh"]},desc:"Creates images from smoke and light. A unique ability not tied to any known Shard.",descAfter:{t:"Original form of illusion magic from Yolen, Hoid's homeworld. Predates Radiant Surgebinding.",r:["sh"]},color:"#e2e8f0",req:["twok"]},
+  {name:"Allomancy",desc:"Consumed a bead of Lerasium at the Well of Ascension, making him a full Mistborn.",color:"#c49a4d",req:["sh"]},
+  {name:"Awakening (Breath)",desc:"Acquired BioChromatic Breaths on Nalthis. Can animate objects with spoken Commands.",color:"#a78bfa",req:["warb"]},
+  {name:"Lightweaving (Radiant)",desc:"Bonded the Cryptic spren Design, becoming a Knight Radiant Lightweaver.",color:"#4a9eff",req:["wor"]},
+  {name:"Dawnshard (Exist)",desc:"Held the Dawnshard of Exist since ancient times. Grants immortality but prevents him from harming others.",color:"#f59e0b",req:["wat"]},
+  {name:"Fortune",desc:"Can sense where he needs to be at specific times. Guides his worldhopping.",color:"#64748b",req:["sh"]},
+];
+
+function TabHoid({books, sa, setSA, sp}) {
+  var u = sp.u;
+  var visible = HOID.filter(function(h){return u([h.book]);});
+  var visAbilities = HOID_ABILITIES.filter(function(a){return u(a.req);});
+  var selState = useState(null);
+  var sel = selState[0];
+  var setSel = selState[1];
+  var abOpen = useState(true);
+
+  return (
+    <div>
+      <Toggle on={sa} set={setSA} />
+      <div style={{textAlign:"center",marginBottom:"20px"}}>
+        <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#f59e0b",fontFamily:"'Cinzel',serif",marginBottom:"8px"}}>The Journey of Hoid</div>
+        <p style={{fontSize:"13px",color:"#64748b",fontStyle:"italic"}}>Present at the Shattering. Appears in every Cosmere book. Collecting magic from across the worlds.</p>
+      </div>
+
+      {visAbilities.length > 0 && (
+        <div style={{maxWidth:"600px",margin:"0 auto 24px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
+          <button onClick={function(){abOpen[1](!abOpen[0]);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+              <span style={{fontSize:"16px"}}>{"✦"}</span>
+              <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#f59e0b",fontFamily:"'Cinzel',serif",fontWeight:600}}>{"Known Abilities & Investiture (" + visAbilities.length + "/" + HOID_ABILITIES.length + ")"}</span>
+            </div>
+            <span style={{color:"#64748b",fontSize:"14px",transform:abOpen[0]?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+          </button>
+          {abOpen[0] && (
+            <div style={{padding:"0 20px 16px"}}>
+              {visAbilities.map(function(ab) {
+                var displayName = ab.name;
+                var displayDesc = ab.desc;
+                if (ab.nameAfter && u(ab.nameAfter.r)) displayName = ab.nameAfter.t;
+                if (ab.descAfter && u(ab.descAfter.r)) displayDesc = ab.descAfter.t;
+                return (
+                  <div key={displayName} style={{display:"flex",alignItems:"flex-start",gap:"12px",padding:"10px 0",borderBottom:"1px solid #1e293b22"}}>
+                    <div style={{width:"8px",height:"8px",borderRadius:"50%",background:ab.color,flexShrink:0,marginTop:"6px"}} />
+                    <div>
+                      <div style={{fontSize:"14px",fontWeight:600,color:ab.color,fontFamily:"'Cinzel',serif"}}>{displayName}</div>
+                      <div style={{fontSize:"12px",color:"#94a3b8",marginTop:"2px",lineHeight:1.5}}>{displayDesc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {!sa && HOID_ABILITIES.length > visAbilities.length && (
+                <div style={{textAlign:"center",padding:"8px",color:"#334155",fontSize:"12px",marginTop:"8px"}}>
+                  {"🔒 " + (HOID_ABILITIES.length - visAbilities.length) + " more abilities locked"}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {visible.length === 0 ? <p style={{textAlign:"center",color:"#475569"}}>Read books to track Hoid.</p> : (
+        <div style={{maxWidth:"600px",margin:"0 auto",position:"relative"}}>
+          <div style={{position:"absolute",left:"24px",top:"20px",bottom:"20px",width:"2px",background:"linear-gradient(to bottom,#f59e0b22,#f59e0b44,#f59e0b22)"}} />
+          {visible.map(function(h, i) {
+            var bk = books.find(function(b){return b.id===h.book;});
+            var isSel = sel === i;
+            return (
+              <div key={i} onClick={function(){setSel(isSel?null:i);}} style={{display:"flex",gap:"16px",marginBottom:"4px",cursor:"pointer",padding:"12px 0"}}>
+                <div style={{flexShrink:0,width:"50px",display:"flex",flexDirection:"column",alignItems:"center",zIndex:1}}>
+                  <div style={{width:"20px",height:"20px",borderRadius:"50%",background:h.color,border:"2px solid #111827",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",color:"#fff"}}>{WI[h.world]||"."}</div>
+                </div>
+                <div style={{flex:1,background:isSel?h.color+"12":"transparent",border:"1px solid "+(isSel?h.color+"33":"transparent"),borderRadius:"10px",padding:"14px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
+                    <span style={{fontFamily:"'Cinzel',serif",fontSize:"14px",fontWeight:600,color:h.color}}>{h.alias}</span>
+                    <span style={{fontSize:"11px",color:"#475569"}}>·</span>
+                    <span style={{fontSize:"12px",color:"#64748b"}}>{h.world}</span>
+                  </div>
+                  <div style={{fontSize:"12px",color:"#94a3b8"}}>{bk ? bk.title : h.book}</div>
+                  {isSel && (
+                    <div>
+                      <p style={{fontSize:"13px",color:"#cbd5e1",lineHeight:1.6,margin:"8px 0"}}>{h.what}</p>
+                      {h.magic.length > 0 && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:"6px",marginTop:"8px"}}>
+                          {h.magic.map(function(m, j) {
+                            return <span key={j} style={{padding:"3px 10px",borderRadius:"20px",background:h.color+"15",border:"1px solid "+h.color+"25",fontSize:"11px",color:h.color}}>{m}</span>;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {!sa && HOID.length > visible.length && <div style={{textAlign:"center",padding:"20px",color:"#334155",fontSize:"12px"}}>{"🔒 "+(HOID.length - visible.length)+" more appearances locked"}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tab 5: Timeline ──
+function TabTime({books, sa, setSA, sp}) {
+  var u = sp.u;
+  var visible = TIMELINE.filter(function(e){return u(e.req);});
+  var selState = useState(null);
+  var sel = selState[0];
+  var setSel = selState[1];
+  var eras = [
+    {k:"Mythic",label:"Mythic Past",sub:"Before recorded history",color:"#e2e8f0"},
+    {k:"Ancient",label:"Ancient Era",sub:"~7,000 - 4,500 years before Stormlight",color:"#94a3b8"},
+    {k:"Classical",label:"Classical Era",sub:"~1,000 - 300 years before Stormlight",color:"#c49a4d"},
+    {k:"Modern",label:"Modern Era",sub:"Current events across the Cosmere",color:"#4a9eff"},
+    {k:"Future",label:"Far Future",sub:"Centuries to millennia after current events",color:"#4dc4b8"}
+  ];
+
+  return (
+    <div>
+      <Toggle on={sa} set={setSA} />
+      <div style={{textAlign:"center",marginBottom:"20px"}}>
+        <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",marginBottom:"8px"}}>Cosmere Timeline</div>
+        <p style={{fontSize:"13px",color:"#64748b",fontStyle:"italic"}}>Major events revealed as you read. Dates are approximate and relative.</p>
+      </div>
+      {visible.length === 0 ? <p style={{textAlign:"center",color:"#475569"}}>Read books to reveal events.</p> : (
+        <div style={{maxWidth:"700px",margin:"0 auto"}}>
+          {eras.map(function(era) {
+            var events = visible.filter(function(e){return e.era===era.k;});
+            if (events.length === 0) return null;
+            var ec = era.color;
+            return (
+              <div key={era.k} style={{marginBottom:"28px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"4px"}}>
+                  <div style={{height:"1px",flex:1,background:ec+"33"}} />
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:"12px",letterSpacing:"3px",textTransform:"uppercase",color:ec,fontWeight:600}}>{era.label}</span>
+                  <div style={{height:"1px",flex:1,background:ec+"33"}} />
+                </div>
+                <div style={{textAlign:"center",marginBottom:"12px"}}>
+                  <span style={{fontSize:"11px",color:"#475569",fontStyle:"italic"}}>{era.sub}</span>
+                </div>
+                <div style={{position:"relative",paddingLeft:"32px"}}>
+                  <div style={{position:"absolute",left:"12px",top:0,bottom:0,width:"2px",background:ec+"22"}} />
+                  {events.map(function(e, i) {
+                    var isSel = sel === era.k+"-"+i;
+                    return (
+                      <div key={i} onClick={function(){setSel(isSel?null:era.k+"-"+i);}} style={{marginBottom:"8px",cursor:"pointer"}}>
+                        <div style={{display:"flex",alignItems:"flex-start",gap:"12px"}}>
+                          <div style={{position:"relative",left:"-20px",flexShrink:0,width:"24px",height:"24px",borderRadius:"50%",background:e.color,border:"3px solid #111827",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"12px"}}>{WI[e.world]||"."}</div>
+                          <div style={{flex:1,background:isSel?e.color+"0a":"transparent",border:"1px solid "+(isSel?e.color+"22":"transparent"),borderRadius:"8px",padding:"10px 12px"}}>
+                            <div style={{fontFamily:"'Cinzel',serif",fontSize:e.big?"15px":"13px",fontWeight:600,color:e.color}}>{e.name}</div>
+                            <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>{e.world}</div>
+                            {isSel && <p style={{fontSize:"13px",color:"#cbd5e1",lineHeight:1.6,margin:"8px 0 0"}}>{e.desc}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {!sa && TIMELINE.length > visible.length && <div style={{textAlign:"center",padding:"16px",color:"#334155",fontSize:"12px"}}>{"🔒 "+(TIMELINE.length - visible.length)+" events locked"}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main App ──
+function App() {
+  var booksState = useState(B0);
+  var books = booksState[0];
+  var setBooks = booksState[1];
+  var auState = useState(AU0);
+  var au = auState[0];
+  var setAu = auState[1];
+  var tabState = useState("list");
+  var tab = tabState[0];
+  var setTab = tabState[1];
+  var filterState = useState("all");
+  var filter = filterState[0];
+  var setFilter = filterState[1];
+  var saState = useState(false);
+  var sa = saState[0];
+  var setSA = saState[1];
+
+  var sp = mkSp(books, au, sa);
+
+  // Merge for counts (skip edge_au to avoid double-counting)
+  var auU = au.filter(function(s){return s.id !== "edge_au";});
+  var all = books.concat(auU);
+  var tR = all.filter(function(b){return b.read;}).length;
+  var tB = all.length;
+  var pct = Math.round((tR / tB) * 100);
+  var pR = all.filter(function(b){return b.read;}).reduce(function(s,b){return s + b.pages;}, 0);
+  var pT = all.reduce(function(s,b){return s + b.pages;}, 0);
+
+  // All books merged for spoiler-aware tabs
+  var allBooks = books.slice();
+  au.forEach(function(s) {
+    if (!allBooks.find(function(b){return b.id === s.id;})) {
+      allBooks.push(Object.assign({}, s, {series: "AU"}));
+    }
+  });
+
+  var tabs = [
+    {k:"list",l:"📚 List"},
+    {k:"worlds",l:"🌍 Worlds"},
+    {k:"shards",l:"◆ Shards"},
+    {k:"hoid",l:"🎭 Hoid"},
+    {k:"time",l:"⏳ Timeline"}
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(170deg,#0a0c14,#111827 40%,#0f1520)",color:"#e2e8f0",fontFamily:"'Crimson Text','Georgia',serif"}}>
+      <div style={{padding:"48px 24px 24px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"radial-gradient(ellipse at 50% 0%,rgba(74,158,255,0.08),transparent 60%)",pointerEvents:"none"}} />
+        <div style={{fontSize:"11px",letterSpacing:"6px",textTransform:"uppercase",color:"#64748b",fontFamily:"'Cinzel',serif",marginBottom:"12px"}}>Brandon Sanderson</div>
+        <h1 style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(28px,5vw,42px)",fontWeight:600,margin:"0 0 28px",background:"linear-gradient(135deg,#e2e8f0,#94a3b8 50%,#e2e8f0)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:"2px"}}>Cosmere Catalogue</h1>
+
+        <div style={{display:"flex",justifyContent:"center",gap:"clamp(20px,4vw,40px)",flexWrap:"wrap",marginBottom:"24px"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(22px,3.5vw,30px)",fontWeight:700,background:"linear-gradient(135deg,#4a9eff,#a78bfa)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{fm(pR)}</div>
+            <div style={{fontSize:"10px",color:"#64748b",letterSpacing:"2px",fontFamily:"'Cinzel',serif",textTransform:"uppercase"}}>Pages Read</div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(22px,3.5vw,30px)",fontWeight:700,color:"#475569"}}>{fm(pT - pR)}</div>
+            <div style={{fontSize:"10px",color:"#64748b",letterSpacing:"2px",fontFamily:"'Cinzel',serif",textTransform:"uppercase"}}>Pages Left</div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(22px,3.5vw,30px)",fontWeight:700,color:"#94a3b8"}}>{fm(pT)}</div>
+            <div style={{fontSize:"10px",color:"#64748b",letterSpacing:"2px",fontFamily:"'Cinzel',serif",textTransform:"uppercase"}}>Total Pages</div>
+          </div>
+        </div>
+
+        <div style={{maxWidth:"400px",margin:"0 auto 24px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",color:"#94a3b8",marginBottom:"8px",fontFamily:"'Cinzel',serif"}}><span>{tR+" of "+tB}</span><span>{pct+"%"}</span></div>
+          <div style={{height:"6px",background:"#1e293b",borderRadius:"3px",overflow:"hidden"}}>
+            <div style={{height:"100%",width:pct+"%",background:"linear-gradient(90deg,#4a9eff,#a78bfa,#4dc4b8)",borderRadius:"3px"}} />
+          </div>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"center",maxWidth:"600px",margin:"0 auto",overflowX:"auto"}}>
+          {tabs.map(function(t, i) {
+            return (
+              <button key={t.k} onClick={function(){setTab(t.k);}} style={{
+                padding:"10px 14px",
+                background:tab===t.k?"rgba(74,158,255,0.1)":"transparent",
+                border:"1px solid",
+                borderColor:tab===t.k?"#4a9eff44":"#334155",
+                borderRadius:i===0?"8px 0 0 8px":i===tabs.length-1?"0 8px 8px 0":"0",
+                color:tab===t.k?"#4a9eff":"#64748b",
+                fontSize:"11px",
+                fontFamily:"'Cinzel',serif",
+                cursor:"pointer",
+                whiteSpace:"nowrap",
+                flexShrink:0
+              }}>{t.l}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{padding:"24px 16px 48px"}}>
+        {tab === "list" && <TabList books={books} setBooks={setBooks} au={au} setAu={setAu} filter={filter} setFilter={setFilter} />}
+        {tab === "worlds" && <TabWorlds books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
+        {tab === "shards" && <TabShards books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
+        {tab === "hoid" && <TabHoid books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
+        {tab === "time" && <TabTime books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
+      </div>
+    </div>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
