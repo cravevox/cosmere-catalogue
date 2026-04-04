@@ -1,6 +1,5 @@
 # Claude Code local files
-.claude/plans/
-.claude/settings.local.json
+.claude/
 
 # OS files
 .DS_Store
