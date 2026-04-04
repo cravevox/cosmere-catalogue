@@ -446,7 +446,7 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
             </div>
             <span style={{color:"#64748b",fontSize:"14px",transform:exp["AU"]===true?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
           </button>
-          {exp["AU"] !== false && (
+          {exp["AU"] === true && (
             <div style={{background:auC.bg+"88",border:"1px solid "+auC.a+"22",borderTop:"none",borderRadius:"0 0 10px 10px",overflow:"hidden"}}>
               <div style={{padding:"10px 20px 6px",fontSize:"12px",color:"#64748b",fontStyle:"italic"}}>A collection of Cosmere short fiction.</div>
               {auFil.map(function(st, i) { return renderBook(st, auC, tA, tOA, i, auFil.length); })}

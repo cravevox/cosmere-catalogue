@@ -278,164 +278,43 @@ This documents WHICH book unlocks WHICH piece of information. This is critical f
 
 ## Roadmap
 
-### 🔴 Next Priority: Star Map System Overhaul
+### ✅ Completed
 
-**Rename tab from "◆ Shards" to "🗺 Star Map"**
+- **Star Map System Overhaul** — Tab renamed to "✦ Star Map". Full planetary system data (stars, moons, perpendicularities, Shards) for 11 systems. Orbital diagrams in PlanetDetail. Shard diamond indicators on star map SVG (colored ◆ per Shard). Worldhopping connection lines.
+- **Interactive Roshar Map** — Embedded iframe to roshar.17thshard.com in PlanetDetail (collapsible section).
+- **Profiles & Persistence** — Multi-profile localStorage system. Default profile "crave" (undeletable). Profile dropdown in header. All read/owned state persists across sessions.
+- **Reading Order** — Dual reading order (community/publication) with toggle switch. Defaults to 4 items with "+show more" to expand.
+- **Spoiler Gating** — "16 Shards" count gated behind Dawnshard. Worlds tab descriptions spoiler-gated. Shard table entries gated per book. Star map planets show ??? for unread worlds.
+- **Connections Tab** — 🕸 Connections tab with epigraph sets data. Hoid's First Letter (TWoK) has chapter-by-chapter text.
+- **Shard Table** — Colored diamond prefix per Shard in table. SHARD_COLORS map for consistent theming.
+- **AU Owned Button** — Unread AU stories show owned/need toggle.
 
-Add full planetary system data to each star map entry:
+### 🔴 Next Priority
 
-#### Rosharan System
-- Star: unnamed
-- Planets: **Ashyn** (origin of humans, surge-diseases), **Roshar** (3 moons: Salas, Nomon, Mishim), **Braize** (Damnation, Odium confined here), + 10 gas giants
-- Perpendicularities: Honor's (mobile, Shattered Plains area) [oath], Cultivation's (Horneater Peaks) [wor]
-- Shards: Honor [twok], Cultivation [wor], Odium on Braize [twok] → Retribution [wat]
-
-#### Scadrian System
-- Star: unnamed (yellow)
-- Planets: **Scadrial**, + 2 gas giants (Aagal Nod, Aagal Uch), + 2 dwarf planets
-- Perpendicularities: Well of Ascension (Preservation's) [woa], Pits of Hathsin (Ruin's) [tfe]
-- Shards: Preservation [tfe], Ruin [tfe] → Harmony [hoa]
-
-#### Selish System
-- Star: Mashe (yellow)
-- Planets: **Donne** (barren), **Sel**, + 2 gas giants (Ky, Ralen), + 1 dwarf planet
-- Perpendicularity: Pool near Elantris (sapphire liquid) [elan]
-- Shards: Devotion [elan], Dominion [elan] — both Splintered, power in Cognitive Realm [sh]
-
-#### Nalthian System
-- Star: unnamed (yellow)
-- Planets: **Nalthis**, gas giant **Farkeeper the Bright**, dwarf planet **Nightstar the Hidden**, + comet belt
-- Perpendicularity: Hallandren jungles (Endowment's) [warb]
-- Shards: Endowment [warb]
-
-#### Taldain System
-- Stars: **AisDa** (blue-white supergiant), **Eye of Ridos** (white dwarf with particulate ring) — binary system
-- Planets: **Taldain** (tidally locked, single planet)
-- Perpendicularity: Autonomy creates/collapses them dynamically [ws_ex]
-- Shards: Autonomy [ws_ex]
-
-#### Threnodite System
-- Planets: **Monody**, **Elegy** (moon: Coronach), **Threnody**, gas giant **Purity**
-- Perpendicularity: No stable one — only unpredictable, morbid-origin ones [shadows]
-- Shards: Ambition — Splintered here but actually died elsewhere [shadows]
-
-#### Drominad System
-- Planets: **First of the Sun** through **Seventh of the Sun** (7 planets, 3 inhabited, all water-dominant)
-- Perpendicularity: On First of the Sun — mystery, no known Shard [6th]
-- Shards: None resident. Autonomy's avatar Patji [bom]
-
-#### UTol System
-- Planets: **UTol**, **Komashi** — binary planet system around one sun
-- Perpendicularity: Unknown
-- Shards: Virtuosity (Splintered voluntarily) [yumi]
-
-#### Lumar System
-- Planet: **Lumar** with 12 geostationary moons
-- Perpendicularity: Unknown
-- Shards: None. Aethers present [tress]
-
-#### Implementation Plan
-1. Add `systemData` object to each PLANET entry with planets array, perps array, shards array
-2. Update PlanetDetail panel to show system info when a planet is tapped
-3. Add perpendicularity indicators (portal icons) on the star map SVG
-4. All new data spoiler-gated per the reference table above
+- **Hoid Tab Spoiler Gating** — Description text ("Present at the Shattering", "Collecting magic") visible to new users with no books read. Needs gating behind Secret History or appropriate book.
+- **Complete Epigraph Text** — Remaining Stormlight epigraph sets need full chapter-by-chapter text matching Coppermind format. Currently have representative samples for most sets except Hoid's First Letter (complete).
 
 ### 🟡 Medium Priority
 
+- **Cosmere Easter Eggs Section** — Expand 🕸 Connections tab into a full reference:
+  - **Epigraph Connection Map** — Visual diagram showing which epigraph sets connect to which Shards/worlds/characters.
+  - **Worldhopper Tracker** — Characters appearing on worlds they're not from (Zahel=Vasher, Azure=Vivenna, Felt, Demoux, etc.). Revealed as you read both source and appearance books.
+  - **Cross-book References** — Nightblood in Stormlight, Hoid's stories referencing other worlds, shared magic system connections.
+  - **"Connections You May Have Missed"** — Per-book list of Cosmere connections. E.g., "The three men at the Purelake in TWoK interlude are Demoux (Mistborn), Galladon (Elantris), and Baon (White Sand)."
 - **Worldhopper Directory** — Characters who appear across multiple books (Demoux, Galladon, Vasher/Zahel, Vivenna/Azure, Khriss, Nazh, Felt). Each with origin world, current location, and appearances. All spoiler-gated.
 - **Cosmere Organizations** — Ghostbloods, Seventeenth Shard, the Ire, Night Brigade, the Set. Goals, known members, book appearances.
-- **Connection Web** — Interactive diagram showing how books connect (which characters cross over, which events reference each other). Tap a connection line to see what the crossover is.
-- **Easter Eggs / "Connections You May Have Missed"** — Per-book list of Cosmere connections. E.g., "The three men at the Purelake in TWoK interlude are Demoux (Mistborn), Galladon (Elantris), and Baon (White Sand)."
 
 ### 🟢 Lower Priority / Nice to Have
 
-- **Cosmere Easter Eggs Section** — A dedicated section (possibly its own tab or sub-section) for cross-book connections that are easy to miss:
-  - **Epigraph Connections** (IN PROGRESS) — Structured guide to epigraph sets across Stormlight Archive. Tab and structure built (🕸 Connections tab). Hoid's First Letter (TWoK Part 2) has complete chapter-by-chapter text matching Coppermind format. Remaining sets (Death Rattles, Frost's Reply, Three Shard Letters, Listener Songs, Gemstone Archive, Navani's Notes, etc.) need full chapter-by-chapter epigraph text added — currently have representative samples only.
-  - **Worldhopper Tracker** — Characters appearing on worlds they're not from (Zahel=Vasher, Azure=Vivenna, Felt, Demoux, etc.). Revealed as you read both source and appearance books.
-  - **Cross-book References** — Nightblood in Stormlight, Hoid's stories referencing other worlds, shared magic system connections.
-- **Individual World Maps** — Detailed maps for Roshar (Shattered Plains, Urithiru, Alethkar, etc.), Scadrial (Luthadel, Elendel), Sel (Arelon, Fjordell). Each with key locations spoiler-gated.
 - **Investiture Encyclopedia** — The three Realms (Physical, Cognitive, Spiritual), Realmatic Theory, Connection, Identity, Fortune. How worldhopping works.
 - **Upcoming Books tracker** — Horneater (2026), Ghostbloods trilogy (2028-2030), Elantris sequels (2029-2030), Stormlight 6 (2031).
-- **Persistent Storage** — Save read state to localStorage or the artifact storage API so it persists across sessions.
 - **Share Mode** — Generate a URL or export that lets someone else see your reading state and the spoiler-appropriate lore.
 
 ---
 
-## User's Current Reading State
+## Architecture Notes
 
-### Read ✅
-- **Stormlight Archive:** Way of Kings, Words of Radiance, Edgedancer, Oathbringer, Dawnshard, Rhythm of War, Wind and Truth
-- **Mistborn Era 1:** The Final Empire, The Well of Ascension, The Hero of Ages
-- **Mistborn Era 2:** The Alloy of Law, Shadows of Self, The Bands of Mourning (NOT The Lost Metal)
-- **Standalones:** Elantris, Warbreaker
-- **Arcanum Unbounded:** The Emperor's Soul, The Hope of Elantris, Mistborn: Secret History, Sixth of the Dusk, Edgedancer
-- **The Eleventh Metal:** Unsure
-
-### Not Yet Read ❌
-- The Lost Metal (owned)
-- Tress of the Emerald Sea (owned)
-- Yumi and the Nightmare Painter
-- The Sunlit Man
-- Isles of the Emberdark
-- Allomancer Jak
-- Shadows for Silence
-- White Sand
-
-### Suggested Reading Order
-1. The Lost Metal → 2. Tress → 3. Yumi → 4. Shadows for Silence → 5. Allomancer Jak → 6. The Eleventh Metal → 7. White Sand → 8. The Sunlit Man → 9. Isles of the Emberdark
-
----
-
-## File Structure (for multi-file project)
-
-```
-cosmere-catalogue/
-├── src/
-│   ├── App.jsx                    # Main app, tab routing, global state
-│   ├── spoiler.js                 # mkSp() and spoiler helpers
-│   ├── data/
-│   │   ├── books.js               # B0, AU0 arrays
-│   │   ├── shards.js              # SHARDS, DAWNSHARDS arrays
-│   │   ├── worlds.js              # WD array (world lore)
-│   │   ├── hoid.js                # HOID, HOID_ABILITIES arrays
-│   │   ├── timeline.js            # TIMELINE array
-│   │   ├── starmap.js             # PLANETS, CONNS, system data
-│   │   └── constants.js           # SC (series colors), WI (world icons), SER
-│   ├── components/
-│   │   ├── Toggle.jsx             # Show All / Progressive toggle
-│   │   ├── Sec.jsx                # Expandable section component
-│   │   ├── SubSec.jsx             # Sub-section component
-│   │   ├── ProgressArc.jsx        # SVG progress arc
-│   │   └── PlanetDetail.jsx       # Star map planet detail panel
-│   ├── tabs/
-│   │   ├── TabList.jsx            # Reading List tab
-│   │   ├── TabWorlds.jsx          # Worlds & Lore tab
-│   │   ├── TabStarMap.jsx         # Star Map tab (was Shards)
-│   │   ├── TabHoid.jsx            # Hoid's Journey tab
-│   │   └── TabTimeline.jsx        # Timeline tab
-│   └── cosmere-tracker-working.jsx  # Current monolith (reference)
-├── docs/
-│   └── ARCHITECTURE.md            # This file
-├── package.json
-├── vite.config.js
-└── index.html
-```
-
-## Setup Instructions
-
-```bash
-# Create project
-npm create vite@latest cosmere-catalogue -- --template react
-cd cosmere-catalogue
-
-# Install dependencies
-npm install
-
-# Copy the working monolith as reference
-# Then split into the file structure above
-
-# Run dev server
-npm run dev
-```
-
-If you want to keep it as a single-file artifact for Claude.ai, keep working in `cosmere-tracker-working.jsx` but be mindful of the 75KB size ceiling and the syntax constraints listed above.
+- **Single-file app** — Everything lives in `index.html`. No build step, no dependencies beyond CDN-loaded React/Babel.
+- **Reading state** — Stored per-profile in localStorage (`cosmere_catalogue_profiles` key). Default profile "crave" cannot be deleted.
+- **Reading order** — Dual mode (community/publication) with toggle switch. Defaults to showing 4 unread books with "+show more".
+- **Deployment** — `git push` to main deploys to GitHub Pages automatically.
