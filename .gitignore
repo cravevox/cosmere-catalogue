@@ -1,9 +1,0 @@
-# Claude Code local files
-.claude/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Node (if ever added)
-node_modules/
