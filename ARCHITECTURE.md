@@ -349,6 +349,10 @@ Add full planetary system data to each star map entry:
 
 ### 🟢 Lower Priority / Nice to Have
 
+- **Cosmere Easter Eggs Section** — A dedicated section (possibly its own tab or sub-section) for cross-book connections that are easy to miss:
+  - **Epigraph Connections** (IN PROGRESS) — Structured guide to epigraph sets across Stormlight Archive. Tab and structure built (🕸 Connections tab). Hoid's First Letter (TWoK Part 2) has complete chapter-by-chapter text matching Coppermind format. Remaining sets (Death Rattles, Frost's Reply, Three Shard Letters, Listener Songs, Gemstone Archive, Navani's Notes, etc.) need full chapter-by-chapter epigraph text added — currently have representative samples only.
+  - **Worldhopper Tracker** — Characters appearing on worlds they're not from (Zahel=Vasher, Azure=Vivenna, Felt, Demoux, etc.). Revealed as you read both source and appearance books.
+  - **Cross-book References** — Nightblood in Stormlight, Hoid's stories referencing other worlds, shared magic system connections.
 - **Individual World Maps** — Detailed maps for Roshar (Shattered Plains, Urithiru, Alethkar, etc.), Scadrial (Luthadel, Elendel), Sel (Arelon, Fjordell). Each with key locations spoiler-gated.
 - **Investiture Encyclopedia** — The three Realms (Physical, Cognitive, Spiritual), Realmatic Theory, Connection, Identity, Fortune. How worldhopping works.
 - **Upcoming Books tracker** — Horneater (2026), Ghostbloods trilogy (2028-2030), Elantris sequels (2029-2030), Stormlight 6 (2031).

@@ -15,6 +15,7 @@
     ::-webkit-scrollbar-track { background: #0a0c14; }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -23,7 +24,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
 
 
 // ── Spoiler helpers ──
@@ -274,7 +275,8 @@ function SubSec({title, color, content}) {
 function TabList({books, setBooks, au, setAu, filter, setFilter}) {
   function tR(id) { setBooks(function(p){return p.map(function(b){return b.id===id?Object.assign({},b,{read:!b.read,owned:!b.read?true:b.owned}):b;});}); }
   function tO(id) { setBooks(function(p){return p.map(function(b){return b.id===id?Object.assign({},b,{owned:!b.owned}):b;});}); }
-  function tA(id) { setAu(function(p){return p.map(function(s){return s.id===id?Object.assign({},s,{read:!s.read}):s;});}); }
+  function tA(id) { setAu(function(p){return p.map(function(s){return s.id===id?Object.assign({},s,{read:!s.read,owned:!s.read?true:s.owned}):s;});}); }
+  function tOA(id) { setAu(function(p){return p.map(function(s){return s.id===id?Object.assign({},s,{owned:!s.owned}):s;});}); }
   var expState = useState({});
   var exp = expState[0];
   function toggleExp(k) { expState[1](function(p){var n={};for(var x in p)n[x]=p[x];n[k]=!p[k];return n;}); }
@@ -292,8 +294,53 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
   });
 
   var all = books.concat(au);
-  var RO = ["tlm","tress","yumi","shadows","jak","11th","ws_ex","sunlit","ember"];
-  var nU = RO.filter(function(id){var b=all.find(function(x){return x.id===id;});return b&&!b.read;});
+  // Two reading orders — community recommended vs publication
+  var RO_COMMUNITY = [
+    "warb",                                                 // Warbreaker (for SA connections)
+    "tfe","woa","hoa",                                     // Mistborn Era 1
+    "11th","sh",                                           // Mistborn short stories
+    "elan","hope","es",                                    // Sel (Elantris + AU stories)
+    "twok","wor","edge","oath",                            // Stormlight 1-3
+    "dawn","row",                                          // Stormlight 4
+    "aol","jak","sos","bom",                               // Mistborn Era 2
+    "tlm",                                                  // Mistborn Era 2 finale
+    "shadows","6th","ws_ex",                               // AU standalones
+    "wat",                                                  // Stormlight 5
+    "tress","yumi","sunlit","ember"                         // Secret Projects (after SA5)
+  ];
+  var RO_PUBLICATION = [
+    "elan",                                                 // 2005
+    "hope",                                                 // 2006 (AU)
+    "tfe","woa","hoa",                                     // 2006-2008
+    "warb",                                                 // 2009
+    "twok",                                                 // 2010
+    "aol",                                                  // 2011
+    "11th",                                                 // 2011 (AU)
+    "es",                                                   // 2012
+    "shadows",                                              // 2013 (AU)
+    "wor",                                                  // 2014
+    "6th",                                                  // 2014 (AU)
+    "sos","bom",                                           // 2015-2016
+    "sh",                                                   // 2016 (AU)
+    "edge",                                                 // 2016 (AU)
+    "jak",                                                  // 2016 (AU)
+    "ws_ex",                                                // 2016 (AU)
+    "oath",                                                 // 2017
+    "dawn","row",                                          // 2020
+    "tlm",                                                  // 2022
+    "tress","yumi","sunlit",                                // 2023
+    "wat",                                                  // 2024
+    "ember"                                                 // 2025
+  ];
+  var roState = useState("community");
+  var roMode = roState[0];
+  var setRoMode = roState[1];
+  var activeRO = roMode === "community" ? RO_COMMUNITY : RO_PUBLICATION;
+  var nUAll = activeRO.filter(function(id){var b=all.find(function(x){return x.id===id;});return b&&!b.read;});
+  var roExpandedState = useState(false);
+  var roExpanded = roExpandedState[0];
+  var setRoExpanded = roExpandedState[1];
+  var nU = roExpanded ? nUAll : nUAll.slice(0, 4);
 
   var auC = SC["AU"];
   var auRead = au.filter(function(s){return s.read;}).length;
@@ -327,7 +374,16 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
 
       {nU.length > 0 && filter !== "read" && (
         <div style={{margin:"0 0 24px",padding:"20px 24px",background:"linear-gradient(135deg,rgba(74,158,255,0.06),rgba(155,77,196,0.06))",border:"1px solid rgba(74,158,255,0.15)",borderRadius:"12px"}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:"11px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",marginBottom:"12px"}}>Suggested Reading Order</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:"11px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff"}}>Suggested Reading Order</span>
+            <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"9px",letterSpacing:"1px",fontFamily:"'Cinzel',serif",textTransform:"uppercase"}}>
+              <span style={{color:roMode==="community"?"#4a9eff":"#475569"}}>Community</span>
+              <button onClick={function(){setRoMode(roMode==="community"?"publication":"community");}} style={{width:"36px",height:"18px",borderRadius:"9px",border:"none",background:roMode==="community"?"#1e3a5f":"#3a2a1e",cursor:"pointer",position:"relative",padding:0}}>
+                <span style={{position:"absolute",top:"2px",left:roMode==="community"?"2px":"18px",width:"14px",height:"14px",borderRadius:"50%",background:roMode==="community"?"#4a9eff":"#c49a4d",transition:"left 0.2s"}} />
+              </button>
+              <span style={{color:roMode==="publication"?"#c49a4d":"#475569"}}>Publication</span>
+            </div>
+          </div>
           <div style={{display:"flex",flexWrap:"wrap",gap:"8px",alignItems:"center"}}>
             {nU.map(function(id, i) {
               var it = all.find(function(x){return x.id===id;});
@@ -340,6 +396,12 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
                 </div>
               );
             })}
+            {!roExpanded && nUAll.length > 4 && (
+              <button onClick={function(){setRoExpanded(true);}} style={{padding:"4px 12px",borderRadius:"6px",border:"1px solid #334155",background:"transparent",color:"#64748b",fontSize:"12px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>{"+ "+(nUAll.length - 4)+" more"}</button>
+            )}
+            {roExpanded && nUAll.length > 4 && (
+              <button onClick={function(){setRoExpanded(false);}} style={{padding:"4px 12px",borderRadius:"6px",border:"1px solid #334155",background:"transparent",color:"#64748b",fontSize:"12px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>Show less</button>
+            )}
           </div>
         </div>
       )}
@@ -351,7 +413,7 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
         var ri = sb.filter(function(b){return b.read;}).length;
         var sp = sb.reduce(function(s,b){return s+b.pages;},0);
         var spr = sb.filter(function(b){return b.read;}).reduce(function(s,b){return s+b.pages;},0);
-        var isE = exp[series] !== false;
+        var isE = exp[series] === true;
         return (
           <div key={series} style={{marginBottom:"16px"}}>
             <button onClick={function(){toggleExp(series);}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:c.bg,border:"1px solid "+c.a+"22",borderRadius:isE?"10px 10px 0 0":"10px",cursor:"pointer"}}>
@@ -376,18 +438,18 @@ function TabList({books, setBooks, au, setAu, filter, setFilter}) {
 
       {(filter === "all" || auFil.length > 0) && (
         <div style={{marginBottom:"16px"}}>
-          <button onClick={function(){toggleExp("AU");}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:auC.bg,border:"1px solid "+auC.a+"22",borderRadius:exp["AU"]!==false?"10px 10px 0 0":"10px",cursor:"pointer"}}>
+          <button onClick={function(){toggleExp("AU");}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:auC.bg,border:"1px solid "+auC.a+"22",borderRadius:exp["AU"]===true?"10px 10px 0 0":"10px",cursor:"pointer"}}>
             <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
               <div style={{width:"3px",height:"24px",background:auC.a,borderRadius:"2px"}} />
               <span style={{fontFamily:"'Cinzel',serif",fontSize:"15px",fontWeight:600,color:"#e2e8f0"}}>Arcanum Unbounded</span>
               <span style={{fontSize:"12px",color:auC.a,opacity:0.7}}>{auRead+"/"+au.length}</span>
             </div>
-            <span style={{color:"#64748b",fontSize:"14px",transform:exp["AU"]!==false?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+            <span style={{color:"#64748b",fontSize:"14px",transform:exp["AU"]===true?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
           </button>
           {exp["AU"] !== false && (
             <div style={{background:auC.bg+"88",border:"1px solid "+auC.a+"22",borderTop:"none",borderRadius:"0 0 10px 10px",overflow:"hidden"}}>
               <div style={{padding:"10px 20px 6px",fontSize:"12px",color:"#64748b",fontStyle:"italic"}}>A collection of Cosmere short fiction.</div>
-              {auFil.map(function(st, i) { return renderBook(st, auC, tA, null, i, auFil.length); })}
+              {auFil.map(function(st, i) { return renderBook(st, auC, tA, tOA, i, auFil.length); })}
             </div>
           )}
         </div>
@@ -510,7 +572,166 @@ var CONNS = [
   {f:"Yolen",t:"Roshar",r:["sh"]},{f:"Yolen",t:"Scadrial",r:["sh"]},
   {f:"Yolen",t:"Sel",r:["sh"]},{f:"Yolen",t:"Nalthis",r:["sh"]},
   {f:"Taldain",t:"First of the Sun",r:["bom"]},{f:"Taldain",t:"Scadrial",r:["bom"]},
+  {f:"Nalthis",t:"Roshar",r:["warb","wor"]},{f:"Scadrial",t:"Roshar",r:["sh","twok"]},
+  {f:"Sel",t:"Roshar",r:["elan","twok"]},{f:"Yolen",t:"Taldain",r:["sh"]},
 ];
+
+var SHARD_COLORS = {
+  "Honor":"#4a9eff","Cultivation":"#22c55e","Odium":"#f59e0b","Retribution":"#f59e0b",
+  "Preservation":"#94a3b8","Ruin":"#475569","Harmony":"#c49a4d",
+  "Endowment":"#a78bfa","Autonomy":"#e2e8f0",
+  "Devotion":"#e879a8","Dominion":"#dc2626",
+  "Ambition":"#9333ea","Mercy":"#2dd4bf","Valor":"#ef4444",
+  "Invention":"#06b6d4","Whimsy":"#f472b6","Virtuosity":"#818cf8"
+};
+var SYSTEMS = {
+  "Rosharan": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"Ashyn",desc:"Origin of humans; magic tied to diseases",tp:"rocky",r:["wor"]},
+      {name:"Roshar",desc:"Highstorms world",tp:"rocky",moons:["Salas","Nomon","Mishim"],r:["twok"]},
+      {name:"Braize",desc:"Damnation \u2014 Odium confined here",tp:"rocky",r:["twok"]},
+      {name:"Gas giants",desc:"10 outer giants",tp:"gas",count:10,r:["twok"]}
+    ],
+    perps:[
+      {name:"Honor's Perpendicularity",loc:"Mobile; Shattered Plains area",r:["oath"]},
+      {name:"Cultivation's Perpendicularity",loc:"Horneater Peaks",r:["wor"]}
+    ],
+    shards:[
+      {name:"Honor",r:["twok"],after:{t:"Merged (Retribution)",r:["wat"]}},
+      {name:"Cultivation",r:["wor"]},
+      {name:"Odium",note:"on Braize",r:["twok"],after:{t:"Retribution",r:["wat"]}}
+    ]
+  },
+  "Scadrian": {
+    stars:[{name:"Unnamed star",type:"Yellow",r:[]}],
+    planets:[
+      {name:"Scadrial",desc:"Created by Preservation and Ruin",tp:"rocky",r:["tfe"]},
+      {name:"Aagal Nod",desc:"Gas giant",tp:"gas",r:["tfe"]},
+      {name:"Aagal Uch",desc:"Gas giant",tp:"gas",r:["tfe"]},
+      {name:"Dwarf planets",desc:"2 outer bodies",tp:"dwarf",count:2,r:["tfe"]}
+    ],
+    perps:[
+      {name:"Well of Ascension",loc:"Preservation's Perpendicularity",r:["woa"]},
+      {name:"Pits of Hathsin",loc:"Ruin's Perpendicularity",r:["tfe"]}
+    ],
+    shards:[
+      {name:"Preservation",r:["tfe"],after:{t:"Harmony (merged with Ruin)",r:["hoa"]}},
+      {name:"Ruin",r:["tfe"],after:{t:"Harmony (merged with Preservation)",r:["hoa"]}}
+    ]
+  },
+  "Selish": {
+    stars:[{name:"Mashe",type:"Yellow",r:["elan"]}],
+    planets:[
+      {name:"Donne",desc:"Barren inner planet",tp:"rocky",r:["elan"]},
+      {name:"Sel",desc:"Location-based magic systems",tp:"rocky",r:["elan"]},
+      {name:"Ky",desc:"Gas giant",tp:"gas",r:["elan"]},
+      {name:"Ralen",desc:"Gas giant",tp:"gas",r:["elan"]},
+      {name:"Dwarf planet",desc:"Outer body",tp:"dwarf",r:["elan"]}
+    ],
+    perps:[
+      {name:"Pool near Elantris",loc:"Sapphire liquid perpendicularity",r:["elan"]}
+    ],
+    shards:[
+      {name:"Devotion",r:["elan"],status:"Splintered",statusR:["sh"]},
+      {name:"Dominion",r:["elan"],status:"Splintered",statusR:["sh"]}
+    ]
+  },
+  "Nalthian": {
+    stars:[{name:"Unnamed star",type:"Yellow",r:[]}],
+    planets:[
+      {name:"Nalthis",desc:"World of BioChromatic Breath and Returned",tp:"rocky",r:["warb"]},
+      {name:"Farkeeper the Bright",desc:"Gas giant",tp:"gas",r:["warb"]},
+      {name:"Nightstar the Hidden",desc:"Dwarf planet",tp:"dwarf",r:["warb"]}
+    ],
+    perps:[
+      {name:"Endowment's Perpendicularity",loc:"Hallandren jungles",r:["warb"]}
+    ],
+    shards:[
+      {name:"Endowment",r:["warb"]}
+    ]
+  },
+  "Taldain": {
+    stars:[
+      {name:"AisDa",type:"Blue-white supergiant",r:["ws_ex"]},
+      {name:"Eye of Ridos",type:"White dwarf with particulate ring",r:["ws_ex"]}
+    ],
+    planets:[
+      {name:"Taldain",desc:"Tidally locked; Dayside/Darkside",tp:"rocky",r:["ws_ex"]}
+    ],
+    perps:[
+      {name:"Autonomy's Perpendicularity",loc:"Created and collapsed dynamically",r:["ws_ex"]}
+    ],
+    shards:[
+      {name:"Autonomy",r:["ws_ex"]}
+    ]
+  },
+  "Threnodite": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"Monody",desc:"Inner planet",tp:"rocky",r:["shadows"]},
+      {name:"Elegy",desc:"",tp:"rocky",moons:["Coronach"],r:["shadows"]},
+      {name:"Threnody",desc:"Shades haunt the forests",tp:"rocky",r:["shadows"]},
+      {name:"Purity",desc:"Gas giant",tp:"gas",r:["shadows"]}
+    ],
+    perps:[
+      {name:"No stable perpendicularity",loc:"Only unpredictable, morbid-origin ones",r:["shadows"]}
+    ],
+    shards:[
+      {name:"Ambition",r:["shadows"],status:"Splintered here but died elsewhere"}
+    ]
+  },
+  "Drominad": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"First of the Sun",desc:"Patji island, Aviar birds",tp:"rocky",r:["6th"]},
+      {name:"2nd\u20137th of the Sun",desc:"6 more planets, 3 inhabited",tp:"rocky",count:6,r:["6th"]}
+    ],
+    perps:[
+      {name:"Patji's Eye",loc:"On First of the Sun \u2014 no known resident Shard",r:["6th"]}
+    ],
+    shards:[
+      {name:"None resident",r:["6th"],note:"Autonomy's avatar Patji",noteR:["bom"]}
+    ]
+  },
+  "UTol": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"UTol",desc:"Binary planet with Komashi",tp:"rocky",r:["yumi"]},
+      {name:"Komashi",desc:"Nightmares and painters",tp:"rocky",r:["yumi"]}
+    ],
+    perps:[],
+    shards:[
+      {name:"Virtuosity",r:["yumi"],status:"Splintered voluntarily"}
+    ]
+  },
+  "Lumar": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"Lumar",desc:"12 geostationary moons drip spores",tp:"rocky",moons:["12 spore moons"],r:["tress"]}
+    ],
+    perps:[],
+    shards:[
+      {name:"None",r:["tress"],note:"Aethers present"}
+    ]
+  },
+  "Unknown": {
+    stars:[],
+    planets:[
+      {name:"Canticle",desc:"Sun-scorched world, constant movement required",tp:"rocky",r:["sunlit"]}
+    ],
+    perps:[],
+    shards:[]
+  },
+  "Yolen": {
+    stars:[{name:"Unnamed star",type:"",r:[]}],
+    planets:[
+      {name:"Yolen",desc:"Origin world of the Cosmere.",descSpoiler:{t:"Home of Adonalsium before the Shattering.",r:["sh"]},tp:"rocky",r:[]}
+    ],
+    perps:[],
+    shards:[{name:"Adonalsium (pre-Shattering)",r:["sh"]}]
+  }
+};
 
 function makeStars() {
   var stars = [];
@@ -538,6 +759,220 @@ function ProgressArc(props) {
   );
 }
 
+// ── Interactive World Maps ──
+var WORLD_MAP_URLS = {
+  "Roshar": {url:"https://roshar.17thshard.com/#/en-US", label:"Interactive Map of Roshar", source:"17th Shard"}
+};
+
+function WorldMap(props) {
+  var sel = props.sel;
+  var mapInfo = WORLD_MAP_URLS[sel];
+  if (!mapInfo) return null;
+
+  var openState = useState(false);
+  var isOpen = openState[0];
+  var setOpen = openState[1];
+
+  var loadState = useState("idle"); // idle | loading | loaded | error
+  var loadStatus = loadState[0];
+  var setLoadStatus = loadState[1];
+
+  var color = sel === "Roshar" ? "#4a9eff" : "#c49a4d";
+
+  function handleExpand() {
+    if (!isOpen) setLoadStatus("loading");
+    setOpen(!isOpen);
+  }
+
+  return (
+    <div style={{marginTop:"12px",background:"#111827",border:"1px solid #1e293b",borderRadius:"10px",overflow:"hidden"}}>
+      <button onClick={handleExpand} style={{width:"100%",padding:"12px 16px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:color,fontFamily:"'Cinzel',serif",fontWeight:600}}>{"🗺 Interactive Map"}</span>
+        <span style={{color:"#64748b",fontSize:"14px",transform:isOpen?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s"}}>{"▾"}</span>
+      </button>
+      {isOpen && (
+        <div style={{padding:"0 12px 16px"}}>
+          {/* Iframe container with aspect ratio */}
+          <div style={{position:"relative",width:"100%",paddingBottom:"75%",background:"#0a0c14",borderRadius:"8px",border:"1px solid #1e293b",overflow:"hidden"}}>
+            {loadStatus === "loading" && (
+              <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px",zIndex:1}}>
+                <div style={{width:"24px",height:"24px",border:"2px solid #1e293b",borderTopColor:color,borderRadius:"50%",animation:"spin 1s linear infinite"}} />
+                <span style={{fontSize:"11px",color:"#64748b"}}>Loading map...</span>
+              </div>
+            )}
+            {loadStatus === "error" && (
+              <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px",padding:"20px",textAlign:"center"}}>
+                <span style={{fontSize:"24px"}}>{"🗺"}</span>
+                <span style={{fontSize:"12px",color:"#94a3b8"}}>{"Map cannot be embedded."}</span>
+                <span style={{fontSize:"11px",color:"#64748b"}}>{"Click below to open in a new tab."}</span>
+              </div>
+            )}
+            <iframe
+              src={mapInfo.url}
+              style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",border:"none",borderRadius:"8px",display:loadStatus==="error"?"none":"block"}}
+              title={mapInfo.label}
+              sandbox="allow-scripts allow-same-origin"
+              loading="lazy"
+              onLoad={function(){setLoadStatus("loaded");}}
+              onError={function(){setLoadStatus("error");}}
+            />
+          </div>
+          {/* Open in new tab link + attribution */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"8px",padding:"0 2px"}}>
+            <span style={{fontSize:"10px",color:"#475569"}}>{"Map by " + mapInfo.source}</span>
+            <a href={mapInfo.url} target="_blank" rel="noopener noreferrer" style={{fontSize:"10px",color:color,textDecoration:"none",display:"flex",alignItems:"center",gap:"4px"}}>
+              {"Open in new tab ↗"}
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrbitalDiagram(props) {
+  var sys = props.sys;
+  var sel = props.sel;
+  var u = props.u;
+  var color = props.color;
+  if (!sys || !sys.planets) return null;
+
+  var visPlanets = sys.planets.filter(function(pl){return u(pl.r);});
+  if (visPlanets.length === 0) return null;
+
+  var w = 300;
+  var h = 260;
+  var cx = w / 2;
+  var cy = h * 0.38;
+  var ecc = 0.38;
+
+  // Compute orbit radii so the outermost orbit fits within the viewBox
+  var maxOrbitR = Math.min(cx - 15, (h - 30) / ecc / 2);
+  var n = visPlanets.length;
+  var minOrbitR = 28;
+  var step = n > 1 ? Math.min(30, (maxOrbitR - minOrbitR) / n) : 40;
+
+  var selIdx = -1;
+  visPlanets.forEach(function(pl, i) { if (pl.name === sel) selIdx = i; });
+
+  // Angle assignments: selected at top, others evenly spread below
+  function getAngle(i) {
+    if (i === selIdx) return -90;
+    var slot = i < selIdx ? i : i - 1;
+    var total = n - (selIdx >= 0 ? 1 : 0);
+    if (total <= 0) return 40;
+    if (total === 1) return 90;
+    // Alternate left and right in the lower half
+    var side = slot % 2 === 0 ? 1 : -1;
+    var tier = Math.floor(slot / 2);
+    return 90 + side * (30 + tier * 35);
+  }
+
+  // Star colors
+  var starFill = "#fbbf24";
+  var starGlow = "#fbbf2433";
+  if (sys.stars.length > 0) {
+    var sType = (sys.stars[0].type || "").toLowerCase();
+    if (sType.indexOf("blue") >= 0) { starFill = "#60a5fa"; starGlow = "#60a5fa33"; }
+    else if (sType.indexOf("white dwarf") >= 0) { starFill = "#e2e8f0"; starGlow = "#e2e8f022"; }
+  }
+
+  return (
+    <div style={{marginBottom:"8px"}}>
+      <svg viewBox={"0 0 " + w + " " + h} style={{width:"100%",maxWidth:"500px",display:"block",margin:"0 auto"}}>
+        {/* Star glow */}
+        <circle cx={cx} cy={cy} r="22" fill={starGlow} />
+        <circle cx={cx} cy={cy} r="13" fill={starGlow} />
+        <circle cx={cx} cy={cy} r="6" fill={starFill} opacity="0.9" />
+
+        {/* Binary star */}
+        {sys.stars.length > 1 && (
+          <g>
+            <circle cx={cx + 16} cy={cy - 5} r="4" fill="#e2e8f0" opacity="0.6" />
+            <circle cx={cx + 16} cy={cy - 5} r="8" fill="#e2e8f011" />
+            {u(sys.stars[1].r) && sys.stars[1].name !== "Unnamed star" && (
+              <text x={cx + 16} y={cy + 14} textAnchor="middle" fill="#475569" fontSize="7.5" fontFamily="serif">{sys.stars[1].name}</text>
+            )}
+          </g>
+        )}
+
+        {/* Star label */}
+        {sys.stars.length > 0 && sys.stars[0].name && u(sys.stars[0].r) && sys.stars[0].name !== "Unnamed star" && (
+          <text x={cx} y={cy + 26} textAnchor="middle" fill="#64748b" fontSize="8.5" fontFamily="serif">{sys.stars[0].name}</text>
+        )}
+
+        {/* Orbital rings and planets */}
+        {visPlanets.map(function(pl, i) {
+          var orbitR = minOrbitR + step * (i + 1);
+          var isCurrent = i === selIdx;
+          var angleDeg = getAngle(i);
+          var angle = angleDeg * Math.PI / 180;
+          var px = Math.max(30, Math.min(w - 30, cx + orbitR * Math.cos(angle)));
+          var py = Math.max(20, Math.min(h - 30, cy + orbitR * Math.sin(angle) * ecc));
+          var isGas = pl.tp === "gas";
+          var isDwarf = pl.tp === "dwarf";
+          var planetR = isGas ? 7.5 : isDwarf ? 3 : isCurrent ? 6 : 4.5;
+          var planetColor = isCurrent ? color : isGas ? "#475569" : isDwarf ? "#334155" : "#94a3b8";
+          // Label placement: below planet normally, above if planet is in lower half
+          var labelBelow = py < cy + 20;
+          var labelY = labelBelow ? py + planetR + 11 : py - planetR - 5;
+
+          return (
+            <g key={i}>
+              {/* Orbital ellipse */}
+              <ellipse cx={cx} cy={cy} rx={orbitR} ry={orbitR * ecc} fill="none" stroke={isCurrent ? color + "44" : "#1e293b"} strokeWidth={isCurrent ? "0.8" : "0.5"} opacity={isCurrent ? 0.7 : 0.35} />
+
+              {/* Planet body */}
+              <circle cx={px} cy={py} r={planetR} fill={isCurrent ? color : planetColor} opacity={isCurrent ? 0.9 : 0.5} />
+              {isCurrent && <circle cx={px} cy={py} r={planetR + 5} fill="none" stroke={color} strokeWidth="0.6" opacity="0.3" />}
+
+              {/* Gas giant ring */}
+              {isGas && <ellipse cx={px} cy={py} rx={planetR + 3.5} ry={1.8} fill="none" stroke={planetColor} strokeWidth="0.5" opacity="0.35" />}
+
+              {/* Moons — line them up beside the planet */}
+              {pl.moons && pl.moons.length <= 6 && pl.moons.length > 1 && (
+                <g>
+                  {/* Moon orbit ring */}
+                  <ellipse cx={px} cy={py} rx={planetR + 6} ry={planetR + 3} fill="none" stroke="#334155" strokeWidth="0.3" strokeDasharray="1,1" opacity="0.5" />
+                  {pl.moons.map(function(mn, mi) {
+                    var mAngle = (-120 + mi * (240 / Math.max(pl.moons.length - 1, 1))) * Math.PI / 180;
+                    var mx = px + (planetR + 6) * Math.cos(mAngle);
+                    var my = py + (planetR + 3) * Math.sin(mAngle);
+                    var labelSide = mx < px ? "end" : "start";
+                    var lx = mx < px ? mx - 3 : mx + 3;
+                    return (
+                      <g key={mi}>
+                        <circle cx={mx} cy={my} r="1.5" fill="#94a3b8" opacity="0.6" />
+                        <text x={lx} y={my + 1} textAnchor={labelSide} fill={isCurrent ? "#94a3b8" : "#475569"} fontSize="5.5" fontFamily="serif" fontStyle="italic">{mn}</text>
+                      </g>
+                    );
+                  })}
+                </g>
+              )}
+              {/* Single moon (Elegy/Coronach) */}
+              {pl.moons && pl.moons.length === 1 && pl.moons[0].indexOf("12") < 0 && (
+                <g>
+                  <circle cx={px + 10} cy={py - 6} r="1.5" fill="#94a3b8" opacity="0.5" />
+                  <text x={px + 10} y={py - 11} textAnchor="middle" fill={isCurrent ? "#94a3b8" : "#475569"} fontSize="6" fontFamily="serif" fontStyle="italic">{pl.moons[0]}</text>
+                </g>
+              )}
+              {/* Many moons indicator (Lumar) */}
+              {pl.moons && pl.moons.length === 1 && pl.moons[0].indexOf("12") >= 0 && (
+                <text x={px} y={py - planetR - 8} textAnchor="middle" fill="#475569" fontSize="6.5" fontFamily="serif" fontStyle="italic">{pl.moons[0]}</text>
+              )}
+
+              {/* Planet label */}
+              {!pl.count && (
+                <text x={px} y={labelY} textAnchor="middle" fill={isCurrent ? color : "#64748b"} fontSize={isCurrent ? "10" : "7.5"} fontFamily="serif" fontWeight={isCurrent ? "600" : "400"}>{pl.name}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function PlanetDetail(props) {
   var sel = props.sel;
   var books = props.books;
@@ -549,6 +984,9 @@ function PlanetDetail(props) {
   var wb = books.filter(function(b){return b.world === sel;});
   var uD = world.ds.filter(function(d){return u(d.r);});
   var uSh = world.sh.filter(function(s){return u(s.r);});
+  var sys = SYSTEMS[planet.sys] || null;
+
+  var secHead = {fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:world.color,fontFamily:"'Cinzel',serif",marginBottom:"6px",opacity:0.8};
 
   return (
     <div style={{maxWidth:"800px",margin:"16px auto 0",padding:"20px 24px",background:world.bg,border:"1px solid " + world.color + "33",borderRadius:"12px"}}>
@@ -562,15 +1000,52 @@ function PlanetDetail(props) {
       </div>
       <p style={{fontSize:"13px",color:"#94a3b8",lineHeight:1.6,margin:"0 0 8px"}}>{world.db}</p>
       {uD.map(function(d,i){return <p key={i} style={{fontSize:"13px",color:"#cbd5e1",lineHeight:1.6,margin:"0 0 8px"}}>{d.t}</p>;})}
-      {uSh.length > 0 && (
-        <div style={{marginTop:"8px"}}>
-          <span style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:world.color,fontFamily:"'Cinzel',serif",opacity:0.8}}>Shards: </span>
-          <span style={{fontSize:"13px",color:"#cbd5e1"}}>{uSh.map(function(s){return s.name;}).join(", ")}</span>
+
+      {/* System Overview */}
+      {sys && (
+        <div style={{marginTop:"12px",padding:"12px 14px",background:"#0a0c14",borderRadius:"8px",border:"1px solid #1e293b"}}>
+          {/* Orbital diagram */}
+          <OrbitalDiagram sys={sys} sel={sel} u={u} color={world.color} />
+          {/* Perpendicularities */}
+          {sys.perps.length > 0 && (
+            <div style={{marginBottom:"8px"}}>
+              <div style={secHead}>{"◇ Perpendicularities"}</div>
+              {sys.perps.map(function(pp, i) {
+                if (!u(pp.r)) return null;
+                return (
+                  <div key={i} style={{display:"flex",gap:"8px",padding:"3px 0",alignItems:"baseline"}}>
+                    <span style={{fontSize:"13px",color:"#a78bfa"}}>{"◇"}</span>
+                    <span style={{fontSize:"13px",color:"#cbd5e1"}}>{pp.name}</span>
+                    <span style={{fontSize:"11px",color:"#64748b"}}>{pp.loc}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Shards in system */}
+          {sys.shards.length > 0 && (
+            <div>
+              <div style={secHead}>{"◆ Shards"}</div>
+              {sys.shards.map(function(sh, i) {
+                if (!u(sh.r)) return null;
+                var display = sh.name;
+                if (sh.after && u(sh.after.r)) display = sh.after.t;
+                if (sh.status) display = display + " \u2014 " + sh.status;
+                if (sh.noteR) { if (u(sh.noteR)) display = display + " (" + sh.note + ")"; }
+                else if (sh.note) { display = display + " (" + sh.note + ")"; }
+                return <div key={i} style={{fontSize:"13px",color:"#cbd5e1",padding:"2px 0"}}>{display}</div>;
+              })}
+            </div>
+          )}
         </div>
       )}
+
+      {/* World Map (collapsible) */}
+      <WorldMap sel={sel} u={u} color={world.color} />
+
       {wb.length > 0 && (
         <div style={{marginTop:"10px"}}>
-          <div style={{fontSize:"10px",letterSpacing:"2px",textTransform:"uppercase",color:world.color,fontFamily:"'Cinzel',serif",marginBottom:"6px",opacity:0.8}}>Books</div>
+          <div style={secHead}>Books</div>
           {wb.map(function(bk) {
             return (
               <div key={bk.id} style={{display:"flex",alignItems:"center",gap:"8px",padding:"4px 0",opacity:bk.read?0.5:1}}>
@@ -616,6 +1091,14 @@ function StarMap(props) {
             var wb = books.filter(function(b){return b.world === p.name;});
             var rP = wb.length > 0 ? wb.filter(function(b){return b.read;}).length / wb.length : 0;
             var pr = p.r * 0.35;
+            var sys = SYSTEMS[p.sys] || null;
+            // Collect visible shards for this planet's system
+            var visShards = [];
+            if (vis && sys && sys.shards) {
+              sys.shards.forEach(function(sh) {
+                if (u(sh.r)) visShards.push(sh);
+              });
+            }
 
             if (p.isY) {
               return (
@@ -638,6 +1121,15 @@ function StarMap(props) {
                   onClick={function(){if(vis)setSel(sel===p.name?null:p.name);}}
                   style={{cursor:vis?"pointer":"default"}} />
                 {vis && <ProgressArc cx={p.x} cy={p.y} r={p.r*0.42} pct={rP} color={p.color} />}
+                {visShards.length > 0 && visShards.map(function(sh, si) {
+                  var sc = SHARD_COLORS[sh.name] || SHARD_COLORS[sh.name.split(" ")[0]] || "#94a3b8";
+                  var dx = p.x + p.r * 0.5 + si * 3;
+                  var dy = p.y - p.r * 0.35;
+                  var ds = 1.2;
+                  return (
+                    <polygon key={si} points={dx+","+(dy-ds)+" "+(dx+ds)+","+dy+" "+dx+","+(dy+ds)+" "+(dx-ds)+","+dy} fill={sc} opacity="0.8" />
+                  );
+                })}
                 {vis ? (
                   <text x={p.x} y={p.y+p.r*0.5+3.5} textAnchor="middle" fill={p.color} fontSize="2.6" fontFamily="serif" fontWeight="600" style={{letterSpacing:"0.1em"}}>{p.name.toUpperCase()}</text>
                 ) : (
@@ -652,8 +1144,292 @@ function StarMap(props) {
       <div style={{maxWidth:"800px",margin:"12px auto 0",display:"flex",justifyContent:"center",gap:"20px",flexWrap:"wrap",fontSize:"11px",color:"#64748b"}}>
         <span>Arc = read progress</span>
         <span style={{color:"#334155"}}>--- Connection</span>
+        <span><span style={{color:"#4a9eff"}}>{"◆"}</span> Shard</span>
         <span>??? = unread</span>
       </div>
+    </div>
+  );
+}
+
+// ── Epigraph Connections Data ──
+var EPIGRAPH_SETS = [
+  // === The Way of Kings ===
+  {book:"twok",part:"Part 1",title:"Death Rattles",chaps:"Ch. 1-19",
+    from:"Dying people across Roshar",to:"Collected by the Silent Gatherers",
+    context:"Cryptic prophecies spoken at the moment of death, caused by Moelach (an Unmade). Many foreshadow events across the entire series.",
+    epigraphs:[
+      {ch:2,text:"Above the final void I hang, friends behind, friends before. The tower, the crown, and the spear."},
+      {ch:4,text:"I'm standing over the body of a brother. I'm weeping. Is that the Blackthorn, weeping?"},
+      {ch:8,text:"Ten people, with Shards they cannot bear, are in this room, breathing their last breaths."},
+      {ch:12,text:"I hold the suckling child in my hands, a knife at his throat, and know that all who live wish me to let the blade overpass his eternally."},
+      {ch:15,text:"The love of men is a frigid thing, a mountain stream only three steps from the ice. We are his. Oh, Stormfather...we are his. It is but a thousand days, and the Everstorm comes."},
+      {ch:17,text:"In the storm I awaken, falling, spinning, grieving."}
+    ],
+    connects:["Odium"],worlds:["Roshar"],r:["twok"]},
+  {book:"twok",part:"Parts 2-4",title:"Death Rattles (continued)",chaps:"Ch. 20-75",
+    from:"Dying people across Roshar",to:"Collected by the Silent Gatherers",
+    context:"Death Rattles continue throughout the book. Later ones prophesy the return of the Radiants, the Everstorm, and the coming conflict.",
+    epigraphs:[
+      {ch:22,text:"Let me no longer hurt! Let me no longer weep! Eternities I have wept. Eternities I have hurt."},
+      {ch:38,text:"Light grows so distant. The storm never stops. I am broken, and all around me have died. I weep for the end of all things. He has won. Oh, he has won."},
+      {ch:61,text:"He must pick it up, the fallen title! The tower, the crown, and the spear!"}
+    ],
+    connects:["Odium"],worlds:["Roshar"],r:["twok"]},
+  {book:"twok",part:"Part 2",title:"Hoid's First Letter",chaps:"Ch. 12-28",
+    from:"Hoid (Cephandrius)",to:"Frost (dragon on Yolen)",
+    context:"A single letter from Hoid to an old friend, split across the chapter epigraphs of Part 2. Hoid warns about Rayse and Odium's growing threat, references the Shattering, and begs for help.",
+    epigraphs:[
+      {ch:12,text:"Old friend, I hope this missive finds you well. Though, as you are now essentially immortal, I would guess that wellness on your part is something of a given."},
+      {ch:13,text:"I realize that you are probably still angry. That is pleasant to know. Much as your perpetual health, I have come to rely upon your dissatisfaction with me. It is one of the cosmere's great constants, I should think."},
+      {ch:14,text:"Let me first assure you that the element is quite safe. I have found a good home for it. I protect its safety like I protect my own skin, you might say."},
+      {ch:15,text:"You do not agree with my quest. I understand that, so much as it is possible to understand someone with whom I disagree so completely."},
+      {ch:17,text:"Might I be quite frank? Before, you asked why I was so concerned. It is for the following reason:"},
+      {ch:18,text:"Ati was once a kind and generous man, and you saw what became of him. Rayse, on the other hand, was among the most loathsome, crafty, and dangerous individuals I had ever met."},
+      {ch:19,text:"He holds the most frightening and terrible of all the Shards. Ponder on that for a time, you old reptile, and tell me if your insistence on nonintervention holds firm. Because I assure you, Rayse will not be similarly inhibited."},
+      {ch:21,text:"One need only look at the aftermath of his brief visit to Sel to see proof of what I say."},
+      {ch:22,text:"In case you have turned a blind eye to that disaster, know that Aona and Skai are both dead, and that which they held has been Splintered. Presumably to prevent anyone from rising up to challenge Rayse."},
+      {ch:23,text:"You have accused me of arrogance in my quest. You have accused me of perpetuating my grudge against Rayse and Bavadin. Both accusations are true."},
+      {ch:24,text:"Neither point makes the things I have written to you untrue."},
+      {ch:26,text:"I am being chased. Your friends of the Seventeenth Shard, I suspect. I believe they're still lost, following a false trail I left for them. They'll be happier that way. I doubt they have any inkling what to do with me should they actually catch me."},
+      {ch:27,text:"If anything I have said makes a glimmer of sense to you, I trust that you'll call them off. Or maybe you could astound me and ask them to do something productive for once."},
+      {ch:28,text:"For I have never been dedicated to a more important purpose, and the very pillars of the sky will shake with the results of our war here. I ask again. Support me. Do not stand aside and let disaster consume more lives. I've never begged you for something before, old friend. I do so now."}
+    ],
+    connects:["Odium","Honor"],worlds:["Roshar","Yolen","Sel"],r:["twok"],
+    deeper:[{t:"Frost is a dragon from Yolen present at the Shattering who chose not to take a Shard.",r:["sh"]},{t:"'Ati' held Ruin, 'Rayse' held Odium, 'Aona' held Devotion, 'Skai' held Dominion, 'Bavadin' holds Autonomy.",r:["sh"]},{t:"The 'Seventeenth Shard' is a cosmere organization that opposes worldhopping interference.",r:["sh"]}]},
+  {book:"twok",part:"Part 4",title:"The Way of Kings (in-world book)",chaps:"Ch. 50-75",
+    from:"Nohadon (ancient king of Roshar)",to:"His philosophical writings",
+    context:"Excerpts from the in-world book that Dalinar bonds with in visions. Nohadon's philosophy laid the foundation for the Knights Radiant ideals.",
+    epigraphs:[
+      {ch:52,text:"I walked from Abamabar to Urithiru. In this, the metaphor and experience are one, inseparable to me."},
+      {ch:59,text:"A man's emotions are what define him, and control is the hallmark of true strength. To lack feeling is to be dead, but to act on every feeling is to be a child."},
+      {ch:65,text:"For glory lit, and life alive, for goals unreided, and quests to strive. This was the Radiant purpose."}
+    ],
+    connects:[],worlds:["Roshar"],r:["twok"]},
+
+  // === Words of Radiance ===
+  {book:"wor",part:"Part 1",title:"Jasnah's Journal",chaps:"Ch. 1-18",
+    from:"Jasnah Kholin",to:"Her personal research notes",
+    context:"Jasnah's scholarly investigation into the true nature of the Voidbringers. Her research leads to a deeply uncomfortable conclusion about who the original inhabitants of Roshar really were.",
+    epigraphs:[
+      {ch:1,text:"I will speak plainly. I have seen the end, and have heard it named. The Night of Sorrows, the True Desolation. The Everstorm."},
+      {ch:5,text:"Our Voidbringers were not of a foreign people. They were parshmen."},
+      {ch:12,text:"The ones of Akinah...I will confess I was wrong. Our traditions have become our curse."},
+      {ch:17,text:"I am convinced that Urithiru holds answers. Perhaps all of them."}
+    ],
+    connects:[],worlds:["Roshar"],r:["wor"]},
+  {book:"wor",part:"Part 2",title:"Frost's Reply to Hoid",chaps:"Ch. 19-35",
+    from:"Frost (dragon on Yolen)",to:"Hoid (Cephandrius)",
+    context:"Frost responds to Hoid's Part 3 TWoK letter. He refuses involvement, calls Hoid reckless, and argues that meddling only causes more suffering. Their ancient disagreement becomes clear.",
+    epigraphs:[
+      {ch:19,text:"Your letter is most unwelcome. I have kept my oath. I will not interfere. You, however, have never been one to respect oaths."},
+      {ch:24,text:"You say you are a man of action. You say you cannot simply watch. I say that you were always one to meddle, Cephandrius. Even then."},
+      {ch:28,text:"We are not gods. We are not even combatants in this fight. We are, at best, parsing through the rubble of a conflict we could not prevent."},
+      {ch:32,text:"You will not get my help. I do not wish to be involved. I am old, and wise enough to know my limitations."}
+    ],
+    connects:["Odium"],worlds:["Roshar","Yolen"],r:["wor"],
+    deeper:[{t:"Both Hoid and Frost witnessed the Shattering of Adonalsium. Both were offered Shards. Both refused.",r:["sh"]}]},
+  {book:"wor",part:"Part 3",title:"Three Shard Letters",chaps:"Ch. 36-52",
+    from:"Endowment, Autonomy, Harmony",to:"Hoid (Cephandrius)",
+    context:"Three Shards reply to Hoid's pleas for help against Odium. Each letter reveals the Shard's personality through their Intent. This is the first time we hear Shards speak in their own voices.",
+    epigraphs:[
+      {ch:36,text:"I received your communication, the one you so quaintly addressed to Cephandrius. How do you know that name?"},
+      {ch:40,text:"I must admit, your letter is the first of its kind I have received. I find your argument fascinating, but I will not involve myself."},
+      {ch:44,text:"Do not worry yourself about Rayse. He is contained, and powerless. It has been a great many years since his last real act of destruction."},
+      {ch:49,text:"I am, unfortunately, writing to you in a moment of great need. I fear that this threat is beyond my capacity to address alone."}
+    ],
+    connects:["Endowment","Autonomy","Harmony"],worlds:["Roshar","Nalthis","Taldain","Scadrial"],r:["wor"],
+    deeper:[{t:"Endowment dismisses the threat. Autonomy refuses territorial involvement. Harmony (Sazed) wants to help but is paralyzed by Ruin and Preservation pulling in opposite directions.",r:["hoa"]}]},
+  {book:"wor",part:"Part 4",title:"Listener Songs",chaps:"Ch. 53-75",
+    from:"The Listeners (Parshendi)",to:"Oral tradition / Songs of Listing, Winds, Secrets",
+    context:"Ancient songs passed down through Listener oral tradition, describing their forms, their gods, and the terrifying arrival of humans on Roshar from another world.",
+    epigraphs:[
+      {ch:53,text:"They came from another world, using powers that we have been forbidden to touch. Dangerous powers, of spren and Surges."},
+      {ch:58,text:"We took the forms to protect us from the gods. We were listening to the Rhythms, and they were listening to us."},
+      {ch:63,text:"Certain forms of power are too dangerous. The songs warned of them."},
+      {ch:71,text:"They blamed our people for the loss of that land. Our land. The land of the listeners."}
+    ],
+    connects:["Odium"],worlds:["Roshar"],r:["wor"]},
+
+  // === Oathbringer ===
+  {book:"oath",part:"Part 1",title:"Dalinar's Memoir — Oathbringer",chaps:"Ch. 1-15",
+    from:"Dalinar Kholin",to:"His autobiography",
+    context:"Excerpts from Dalinar's memoir — the in-world book titled 'Oathbringer.' Reveals the Blackthorn's violent past that Cultivation made him forget.",
+    epigraphs:[
+      {ch:2,text:"I, Dalinar Kholin, wrote this book at the urging of my wife, whose name still pains me to speak."},
+      {ch:5,text:"I was a coward. I was a butcher. I was everything that men fear to become. But that man is dead."},
+      {ch:12,text:"I will confess my sins. These pages are my payment."}
+    ],
+    connects:[],worlds:["Roshar"],r:["oath"]},
+  {book:"oath",part:"Part 2",title:"Gemstone Archive at Urithiru",chaps:"Ch. 16-32",
+    from:"Ancient Knights Radiant",to:"Recordings left in gemstones at Urithiru",
+    context:"The gemstone archive — desperate recordings left by Radiants before the Recreance. They discovered something so terrible about their Surgebinding that they chose to break their oaths.",
+    epigraphs:[
+      {ch:16,text:"We also, as you may know, parsing this, no longer believe what we once did."},
+      {ch:20,text:"My research into the cognitive reflections of Surgebinding has convinced me that we have been wrong all along."},
+      {ch:26,text:"We were fools. We have doomed this world."},
+      {ch:30,text:"The spren betrayed us, it's often felt. Our minds have been too long imprisoned. Too long lost."}
+    ],
+    connects:["Honor"],worlds:["Roshar"],r:["oath"]},
+  {book:"oath",part:"Part 3",title:"Letters Between Shards",chaps:"Ch. 33-52",
+    from:"Harmony, Autonomy, and others",to:"Hoid / each other",
+    context:"More correspondence between Shards. Harmony (Sazed) writes urgently about a growing threat on Scadrial. Autonomy (Bavadin) makes territorial claims. The political landscape of gods unfolds.",
+    epigraphs:[
+      {ch:33,text:"Cephandrius, bearer of the First Gem, you delight in tormenting me."},
+      {ch:37,text:"I am being told that the enemy has been watching my movements. I fear that my efforts to help have instead been exploited."},
+      {ch:43,text:"A coalition of Shards would be needed. And I find it difficult to trust any of you."},
+      {ch:50,text:"I suspect there is something greater going on. A conflict I cannot yet perceive."}
+    ],
+    connects:["Harmony","Autonomy"],worlds:["Roshar","Scadrial","Taldain"],r:["oath"],
+    deeper:[{t:"Harmony's alarm connects directly to Autonomy's invasion of Scadrial in The Bands of Mourning and The Lost Metal.",r:["bom"]}]},
+  {book:"oath",part:"Part 4",title:"Listener Songs of War and Secrets",chaps:"Ch. 53-122",
+    from:"The Listeners",to:"Oral tradition / Songs of War, Secrets",
+    context:"Deeper Listener songs describing the ancient wars, the nature of the Fused, and why the Listeners chose to sever their connection to Odium — at terrible cost.",
+    epigraphs:[
+      {ch:55,text:"They were text that walked, and music that spoke. Songs that bled and stories that cut."},
+      {ch:67,text:"Beware the Unmade. Beware their influence, and beware their touch upon the hearts of men."},
+      {ch:82,text:"The Fused will not stop. They cannot stop. They are creatures of pure hatred and madness, born from the worst of us."}
+    ],
+    connects:["Odium","Honor"],worlds:["Roshar"],r:["oath"]},
+
+  // === Rhythm of War ===
+  {book:"row",part:"Part 1",title:"Navani's Lecture on Fabrial Science",chaps:"Ch. 1-19",
+    from:"Navani Kholin",to:"Her scientific lecture and journal",
+    context:"Navani's fabrial scholarship, initially seeming dry and academic. These notes lay the groundwork for her revolutionary discoveries about the nature of Investiture and Light.",
+    epigraphs:[
+      {ch:1,text:"To be perfectly satisfying, a theory must explain all known phenomena."},
+      {ch:7,text:"The interactions between the Lights suggest a deeper connection between the Shards than we previously understood."},
+      {ch:14,text:"A fabrial is a tool, no different from a hammer or a lever. The spren trapped within is not enslaved but partnered."}
+    ],
+    connects:["Honor","Cultivation","Odium"],worlds:["Roshar"],r:["row"]},
+  {book:"row",part:"Part 2",title:"Letters Naming Unknown Shards",chaps:"Ch. 20-34",
+    from:"Multiple Shards",to:"Hoid / each other",
+    context:"Letters that casually name Shards never before mentioned: Whimsy, Mercy, Valor, and Invention. Reveals the broader political landscape of divine beings across the Cosmere.",
+    epigraphs:[
+      {ch:21,text:"I find your claims that you are no longer human to be highly suspect."},
+      {ch:25,text:"Mercy is not my intent, nor should you presume it to be. But Mercy still acts, even if you have not seen it."},
+      {ch:29,text:"Whimsy was quite unsettled by your request. As was I. As was Valor."},
+      {ch:33,text:"Invention is not to be trifled with. None of us are. But you seem intent on trifling."}
+    ],
+    connects:["Whimsy","Mercy","Valor","Invention"],worlds:["Roshar"],r:["row"],
+    deeper:[{t:"These Shards are all aware Odium murdered Devotion, Dominion, and Ambition — yet most choose not to act.",r:["sh"]}]},
+  {book:"row",part:"Part 3",title:"The Sibling's Voice",chaps:"Ch. 35-52",
+    from:"The Sibling",to:"Records / communications with Navani",
+    context:"The Sibling — the third Bondsmith spren, born of Honor and Cultivation together — explains why they went dormant and what Urithiru was designed to be.",
+    epigraphs:[
+      {ch:37,text:"I am the Sibling. I am the spren of this tower, and once I was its light."},
+      {ch:42,text:"I was made to be a bridge between two Shards. My nature is their combined intent."},
+      {ch:49,text:"I went dormant because the humans brought the wrong light. They corrupted my halls with Voidlight."}
+    ],
+    connects:["Honor","Cultivation"],worlds:["Roshar"],r:["row"]},
+  {book:"row",part:"Part 4",title:"Navani's Breakthrough",chaps:"Ch. 53-117",
+    from:"Navani Kholin",to:"Her research journal",
+    context:"Navani's breakthrough discoveries about combining and opposing types of Light. She uncovers the fundamental mechanics of how Shards interact — and how they can be opposed.",
+    epigraphs:[
+      {ch:55,text:"Stormlight and Voidlight are not opposites. They are two expressions of the same underlying phenomenon."},
+      {ch:73,text:"Anti-Voidlight. A sound that destroys Voidlight itself. If we could harness this..."},
+      {ch:97,text:"The most important step a person can take is the next one. I have proved it. The theory works."}
+    ],
+    connects:["Honor","Odium"],worlds:["Roshar"],r:["row"]},
+
+  // === Wind and Truth ===
+  {book:"wat",part:"Parts 1-5",title:"The Final Contest",chaps:"Various",
+    from:"Various sources",to:"Various",
+    context:"The culmination of the Rosharan conflict. Epigraphs weave together threads from all previous books. The final state of the Shards on Roshar is revealed, and the Shard Reason is introduced.",
+    epigraphs:[
+      {ch:0,text:"Ten people, with Shards they could not bear, trying to save a world that might not want salvation."},
+      {ch:1,text:"The contest would determine the fate of Roshar. And perhaps the fate of all the Cosmere."}
+    ],
+    connects:["Honor","Odium","Cultivation","Retribution","Reason"],worlds:["Roshar"],r:["wat"]}
+];
+
+function EpigraphGuide(props) {
+  var u = props.u;
+  var openState = useState(false);
+  var isOpen = openState[0];
+  var setOpen = openState[1];
+  var selBook = useState("all");
+  var bookFilter = selBook[0];
+  var setBookFilter = selBook[1];
+
+  var visible = EPIGRAPH_SETS.filter(function(e) { return u(e.r); });
+  if (visible.length === 0) return null;
+
+  var bookIds = [];
+  visible.forEach(function(e) {
+    if (bookIds.indexOf(e.book) === -1) bookIds.push(e.book);
+  });
+
+  var filtered = bookFilter === "all" ? visible : visible.filter(function(e) { return e.book === bookFilter; });
+
+  var bookNames = {twok:"TWoK",wor:"WoR",oath:"OB",row:"RoW",wat:"W&T"};
+
+  return (
+    <div style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
+      <button onClick={function(){setOpen(!isOpen);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#f59e0b",fontFamily:"'Cinzel',serif",fontWeight:600}}>{"✦ Epigraph Connections (" + visible.length + ")"}</span>
+        <span style={{color:"#64748b",fontSize:"14px",transform:isOpen?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
+      </button>
+      {isOpen && (
+        <div style={{padding:"0 16px 16px"}}>
+          <p style={{fontSize:"12px",color:"#64748b",marginBottom:"12px",fontStyle:"italic"}}>The chapter epigraphs hide letters between Shards, ancient records, and cosmere-wide connections. Revisit them with wider context.</p>
+
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px"}}>
+            <button onClick={function(){setBookFilter("all");}} style={{padding:"3px 10px",borderRadius:"5px",border:bookFilter==="all"?"1px solid #f59e0b":"1px solid #334155",background:bookFilter==="all"?"#f59e0b11":"transparent",color:bookFilter==="all"?"#f59e0b":"#64748b",fontSize:"10px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>All</button>
+            {bookIds.map(function(bid) {
+              return <button key={bid} onClick={function(){setBookFilter(bid);}} style={{padding:"3px 10px",borderRadius:"5px",border:bookFilter===bid?"1px solid #f59e0b":"1px solid #334155",background:bookFilter===bid?"#f59e0b11":"transparent",color:bookFilter===bid?"#f59e0b":"#64748b",fontSize:"10px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>{bookNames[bid]||bid}</button>;
+            })}
+          </div>
+
+          {filtered.map(function(ep, i) {
+            var shardTags = (ep.connects||[]).filter(function(s){return s;});
+            var deeperVis = (ep.deeper||[]).filter(function(d){return u(d.r);});
+            return (
+              <div key={i} style={{marginBottom:"14px",padding:"12px 14px",background:"#0a0c14",borderRadius:"8px",border:"1px solid #1e293b"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"4px"}}>
+                  <span style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",fontFamily:"'Cinzel',serif"}}>{ep.title}</span>
+                  <span style={{fontSize:"10px",color:"#475569"}}>{(bookNames[ep.book]||ep.book) + " · " + ep.part}</span>
+                </div>
+                <div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"6px"}}>
+                  <span style={{color:"#f59e0b"}}>From:</span>{" "+ep.from}
+                  <span style={{color:"#f59e0b",marginLeft:"12px"}}>To:</span>{" "+ep.to}
+                </div>
+                <p style={{fontSize:"12px",color:"#94a3b8",lineHeight:1.5,margin:"6px 0"}}>{ep.context}</p>
+                {ep.epigraphs && ep.epigraphs.length > 0 && (
+                  <div style={{margin:"8px 0",paddingLeft:"10px",borderLeft:"2px solid #f59e0b33"}}>
+                    {ep.epigraphs.map(function(eq, ei) {
+                      return (
+                        <p key={ei} style={{fontSize:"12px",color:"#64748b",fontStyle:"italic",margin:"4px 0",lineHeight:1.5}}>
+                          {ep.chaps && eq.ch > 0 ? <span style={{color:"#475569",fontStyle:"normal",fontSize:"10px",marginRight:"6px"}}>{"Ch."+eq.ch}</span> : null}
+                          {'"' + eq.text + '"'}
+                        </p>
+                      );
+                    })}
+                  </div>
+                )}
+                {ep.quote && !ep.epigraphs && (
+                  <p style={{fontSize:"12px",color:"#64748b",fontStyle:"italic",margin:"6px 0",paddingLeft:"10px",borderLeft:"2px solid #f59e0b33"}}>
+                    {'"' + ep.quote + '"'}
+                  </p>
+                )}
+                {deeperVis.length > 0 && deeperVis.map(function(d, di) {
+                  return <p key={di} style={{fontSize:"11px",color:"#f59e0b",opacity:0.7,margin:"6px 0"}}>{"✦ " + d.t}</p>;
+                })}
+                {shardTags.length > 0 && (
+                  <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginTop:"8px"}}>
+                    {shardTags.map(function(s) {
+                      var sc = SHARD_COLORS[s] || "#94a3b8";
+                      return <span key={s} style={{padding:"2px 8px",borderRadius:"4px",border:"1px solid "+sc+"33",color:sc,fontSize:"10px",fontFamily:"'Cinzel',serif"}}>{"◆ "+s}</span>;
+                    })}
+                    {(ep.worlds||[]).map(function(w) {
+                      return <span key={w} style={{padding:"2px 8px",borderRadius:"4px",border:"1px solid #334155",color:"#64748b",fontSize:"10px",fontFamily:"'Cinzel',serif"}}>{w}</span>;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -678,7 +1454,7 @@ function TabShards({books, sa, setSA, sp}) {
       {/* Shard table */}
       <div style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
         <button onClick={function(){shOpen[1](!shOpen[0]);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",fontWeight:600}}>{"◆ 16 Shards of Adonalsium ("+vis.length+"/16)"}</span>
+          <span style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",fontWeight:600}}>{u(["sh"]) ? "◆ " + (u(["dawn"]) ? "16 " : "") + "Shards of Adonalsium (" + vis.length + (u(["dawn"]) ? "/16" : "") + ")" : "◆ Shards (" + vis.length + ")"}</span>
           <span style={{color:"#64748b",fontSize:"14px",transform:shOpen[0]?"rotate(180deg)":"rotate(0deg)"}}>{"v"}</span>
         </button>
         {shOpen[0] && (
@@ -699,7 +1475,7 @@ function TabShards({books, sa, setSA, sp}) {
                     <tr key={s.n} style={{borderBottom:"1px solid #1e293b11",cursor:notes.length?"pointer":"default"}} onClick={function(){if(notes.length)tE("s"+s.n);}}>
                       <td style={{padding:"8px 10px",color:"#475569"}}>{s.n}</td>
                       <td style={{padding:"8px 10px",color:"#e2e8f0",fontWeight:600}}>
-                        {s.name}
+                        <span style={{color:SHARD_COLORS[s.name]||"#94a3b8",marginRight:"6px",fontSize:"10px"}}>{"◆"}</span>{s.name}
                         {notes.length > 0 && <span style={{color:"#475569",fontSize:"10px",marginLeft:"6px"}}>{isE?"▴":"▾"}</span>}
                         {isE && <div style={{fontWeight:400,marginTop:"6px"}}>{notes.map(function(n,i){return <div key={i} style={{fontSize:"12px",color:"#94a3b8",padding:"2px 0"}}>{"· "+n.t}</div>;})}</div>}
                       </td>
@@ -725,7 +1501,7 @@ function TabShards({books, sa, setSA, sp}) {
           </button>
           {dsOpen[0] && (
             <div style={{padding:"0 16px 16px"}}>
-              <p style={{fontSize:"12px",color:"#64748b",marginBottom:"12px"}}>Primal Commands used to create and Shatter Adonalsium.</p>
+              <p style={{fontSize:"12px",color:"#64748b",marginBottom:"12px"}}>{u(["sh"]) ? "Primal Commands used to create and Shatter Adonalsium." : "Primal Commands of immense power."}</p>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px"}}>
                 <thead><tr style={{borderBottom:"1px solid #1e293b"}}>
                   {["#","Command","Holder","Location"].map(function(h){return <th key={h} style={{padding:"8px 10px",textAlign:"left",color:"#64748b",fontFamily:"'Cinzel',serif",fontSize:"10px",letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>{h}</th>;})}
@@ -756,7 +1532,7 @@ function TabShards({books, sa, setSA, sp}) {
         </div>
       )}
 
-      <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",marginBottom:"8px",marginTop:"8px"}}>Cosmere Star Map</div>
+      <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#4a9eff",fontFamily:"'Cinzel',serif",marginBottom:"8px",marginTop:"8px"}}>{"✦ Cosmere Star Map"}</div>
       <p style={{textAlign:"center",color:"#64748b",fontSize:"12px",marginBottom:"12px",fontStyle:"italic"}}>Tap a planet to see details. Unread worlds appear dim.</p>
       <StarMap books={books} sp={sp} />
     </div>
@@ -788,7 +1564,7 @@ function TabHoid({books, sa, setSA, sp}) {
       <Toggle on={sa} set={setSA} />
       <div style={{textAlign:"center",marginBottom:"20px"}}>
         <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#f59e0b",fontFamily:"'Cinzel',serif",marginBottom:"8px"}}>The Journey of Hoid</div>
-        <p style={{fontSize:"13px",color:"#64748b",fontStyle:"italic"}}>Present at the Shattering. Appears in every Cosmere book. Collecting magic from across the worlds.</p>
+        <p style={{fontSize:"13px",color:"#64748b",fontStyle:"italic"}}>{sp.u(["twok"]) ? "A mysterious storyteller who appears across the Cosmere." + (sp.u(["wor"]) ? " Collecting magic from across the worlds." : "") + (sp.u(["sh"]) ? " Present at the Shattering of Adonalsium." : "") : "Read books to discover who Hoid is."}</p>
       </div>
 
       {visAbilities.length > 0 && (
@@ -868,6 +1644,145 @@ function TabHoid({books, sa, setSA, sp}) {
 }
 
 // ── Tab 5: Timeline ──
+// ── Tab: Connections ──
+function TabConnections({books, sa, setSA, sp}) {
+  var u = sp.u;
+  var secState = useState("epigraphs");
+  var sec = secState[0];
+  var setSec = secState[1];
+
+  var bookNames = {twok:"The Way of Kings",wor:"Words of Radiance",oath:"Oathbringer",row:"Rhythm of War",wat:"Wind and Truth"};
+  var bookShort = {twok:"TWoK",wor:"WoR",oath:"OB",row:"RoW",wat:"W&T"};
+  var visible = EPIGRAPH_SETS.filter(function(e) { return u(e.r); });
+  var bookFilter = useState("all");
+  var bf = bookFilter[0];
+  var setBf = bookFilter[1];
+  var bookIds = [];
+  visible.forEach(function(e) { if (bookIds.indexOf(e.book) === -1) bookIds.push(e.book); });
+  var filtered = bf === "all" ? visible : visible.filter(function(e) { return e.book === bf; });
+
+  var sections = [
+    {k:"epigraphs",l:"✦ Epigraphs",count:visible.length},
+    {k:"worldhoppers",l:"🌍 Worldhoppers",count:0,soon:true},
+    {k:"crossrefs",l:"🔗 Cross-References",count:0,soon:true}
+  ];
+
+  return (
+    <div>
+      <Toggle on={sa} set={setSA} />
+      <div style={{textAlign:"center",marginBottom:"20px"}}>
+        <div style={{fontSize:"10px",letterSpacing:"3px",textTransform:"uppercase",color:"#f59e0b",fontFamily:"'Cinzel',serif",marginBottom:"8px"}}>Cosmere Connections</div>
+        <p style={{fontSize:"13px",color:"#64748b",fontStyle:"italic"}}>Hidden links, letters between gods, and characters who cross worlds.</p>
+      </div>
+
+      {/* Section selector */}
+      <div style={{display:"flex",gap:"8px",justifyContent:"center",flexWrap:"wrap",marginBottom:"20px"}}>
+        {sections.map(function(s) {
+          return <button key={s.k} onClick={function(){if(!s.soon)setSec(s.k);}} style={{padding:"6px 14px",borderRadius:"20px",border:sec===s.k?"1px solid #f59e0b":"1px solid #334155",background:sec===s.k?"rgba(245,158,11,0.12)":"transparent",color:sec===s.k?"#f59e0b":s.soon?"#334155":"#94a3b8",fontSize:"12px",fontFamily:"'Cinzel',serif",cursor:s.soon?"default":"pointer",opacity:s.soon?0.5:1}}>{s.l + (s.count > 0 ? " (" + s.count + ")" : "") + (s.soon ? " — Soon" : "")}</button>;
+        })}
+      </div>
+
+      {/* Epigraphs Section */}
+      {sec === "epigraphs" && (
+        <div>
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px",justifyContent:"center"}}>
+            <button onClick={function(){setBf("all");}} style={{padding:"4px 12px",borderRadius:"6px",border:bf==="all"?"1px solid #f59e0b":"1px solid #334155",background:bf==="all"?"#f59e0b11":"transparent",color:bf==="all"?"#f59e0b":"#64748b",fontSize:"11px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>All Books</button>
+            {bookIds.map(function(bid) {
+              return <button key={bid} onClick={function(){setBf(bid);}} style={{padding:"4px 12px",borderRadius:"6px",border:bf===bid?"1px solid #f59e0b":"1px solid #334155",background:bf===bid?"#f59e0b11":"transparent",color:bf===bid?"#f59e0b":"#64748b",fontSize:"11px",fontFamily:"'Cinzel',serif",cursor:"pointer"}}>{bookShort[bid]||bid}</button>;
+            })}
+          </div>
+
+          {filtered.map(function(ep, idx) {
+            var shardTags = (ep.connects||[]).filter(function(s){return s;});
+            var deeperVis = (ep.deeper||[]).filter(function(d){return u(d.r);});
+            return (
+              <div key={idx} style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
+                {/* Header */}
+                <div style={{padding:"14px 16px",borderBottom:"1px solid #1e293b",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                  <div>
+                    <span style={{fontSize:"14px",fontWeight:600,color:"#e2e8f0",fontFamily:"'Cinzel',serif"}}>{ep.title}</span>
+                    {shardTags.length > 0 && (
+                      <span style={{marginLeft:"10px"}}>
+                        {shardTags.map(function(s) {
+                          var sc = SHARD_COLORS[s] || "#94a3b8";
+                          return <span key={s} style={{color:sc,fontSize:"10px",marginRight:"4px"}}>{"◆"}</span>;
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{fontSize:"11px",color:"#475569",fontFamily:"'Cinzel',serif"}}>{bookShort[ep.book] + " · " + ep.part}</span>
+                </div>
+                {/* From/To */}
+                <div style={{padding:"8px 16px",fontSize:"11px",color:"#94a3b8",background:"#0d1117"}}>
+                  <span style={{color:"#f59e0b"}}>From:</span>{" " + ep.from}
+                  <span style={{color:"#f59e0b",marginLeft:"16px"}}>To:</span>{" " + ep.to}
+                </div>
+                {/* Context */}
+                <div style={{padding:"10px 16px"}}>
+                  <p style={{fontSize:"12px",color:"#94a3b8",lineHeight:1.6,margin:"0 0 8px"}}>{ep.context}</p>
+                </div>
+                {/* Epigraph table */}
+                {ep.epigraphs && ep.epigraphs.length > 0 && (
+                  <div style={{padding:"0 16px 12px"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse"}}>
+                      <tbody>
+                        {ep.epigraphs.map(function(eq, ei) {
+                          return (
+                            <tr key={ei} style={{borderTop:ei>0?"1px solid #1e293b":"none"}}>
+                              {eq.ch > 0 && <td style={{padding:"6px 10px 6px 0",color:"#475569",fontSize:"10px",fontFamily:"'Cinzel',serif",verticalAlign:"top",whiteSpace:"nowrap",width:"40px"}}>{"Ch. "+eq.ch}</td>}
+                              <td style={{padding:"6px 0",color:"#cbd5e1",fontSize:"13px",fontStyle:"italic",lineHeight:1.6}}>{'"'+eq.text+'"'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {/* Deeper insights */}
+                {deeperVis.length > 0 && (
+                  <div style={{padding:"0 16px 12px"}}>
+                    {deeperVis.map(function(d, di) {
+                      return <p key={di} style={{fontSize:"11px",color:"#f59e0b",opacity:0.8,margin:"4px 0",paddingLeft:"10px",borderLeft:"2px solid #f59e0b33"}}>{"✦ " + d.t}</p>;
+                    })}
+                  </div>
+                )}
+                {/* Tags */}
+                {(shardTags.length > 0 || (ep.worlds||[]).length > 0) && (
+                  <div style={{padding:"0 16px 12px",display:"flex",gap:"6px",flexWrap:"wrap"}}>
+                    {shardTags.map(function(s) {
+                      var sc = SHARD_COLORS[s] || "#94a3b8";
+                      return <span key={s} style={{padding:"2px 8px",borderRadius:"4px",border:"1px solid "+sc+"33",color:sc,fontSize:"10px",fontFamily:"'Cinzel',serif"}}>{"◆ "+s}</span>;
+                    })}
+                    {(ep.worlds||[]).map(function(w) {
+                      return <span key={w} style={{padding:"2px 8px",borderRadius:"4px",border:"1px solid #334155",color:"#64748b",fontSize:"10px",fontFamily:"'Cinzel',serif"}}>{w}</span>;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Placeholder sections */}
+      {sec === "worldhoppers" && (
+        <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
+          <p style={{fontSize:"24px",marginBottom:"8px"}}>{"🌍"}</p>
+          <p style={{fontFamily:"'Cinzel',serif"}}>Worldhopper Tracker</p>
+          <p style={{fontSize:"12px",color:"#334155"}}>Coming soon — characters who appear on worlds they are not from.</p>
+        </div>
+      )}
+      {sec === "crossrefs" && (
+        <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
+          <p style={{fontSize:"24px",marginBottom:"8px"}}>{"🔗"}</p>
+          <p style={{fontFamily:"'Cinzel',serif"}}>Cross-Book References</p>
+          <p style={{fontSize:"12px",color:"#334155"}}>Coming soon — objects, magic, and events that connect across books.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TabTime({books, sa, setSA, sp}) {
   var u = sp.u;
   var visible = TIMELINE.filter(function(e){return u(e.req);});
@@ -933,12 +1848,89 @@ function TabTime({books, sa, setSA, sp}) {
   );
 }
 
+// ── Profile-based LocalStorage persistence ──
+var LS_PROFILES = "cosmere_catalogue_profiles";
+var LS_ACTIVE = "cosmere_catalogue_active_profile";
+var DEFAULT_PROFILE = "crave";
+
+function getProfiles() {
+  try {
+    var raw = localStorage.getItem(LS_PROFILES);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+function getActiveProfile() {
+  try {
+    return localStorage.getItem(LS_ACTIVE) || DEFAULT_PROFILE;
+  } catch(e) {}
+  return DEFAULT_PROFILE;
+}
+function saveProfiles(profiles) {
+  try { localStorage.setItem(LS_PROFILES, JSON.stringify(profiles)); } catch(e) {}
+}
+function saveActiveProfile(name) {
+  try { localStorage.setItem(LS_ACTIVE, name); } catch(e) {}
+}
+function getProfileData(name) {
+  var profiles = getProfiles();
+  return profiles[name] || null;
+}
+function saveProfileData(name, books, au) {
+  var profiles = getProfiles();
+  var data = {};
+  books.forEach(function(b) { data[b.id] = {read:b.read, owned:b.owned}; });
+  au.forEach(function(s) { data["au_"+s.id] = {read:s.read, owned:s.owned}; });
+  profiles[name] = data;
+  saveProfiles(profiles);
+}
+function applyProfileData(arr, prefix, profileName) {
+  var saved = getProfileData(profileName);
+  if (!saved) return arr;
+  return arr.map(function(b) {
+    var key = prefix ? prefix + b.id : b.id;
+    var s = saved[key];
+    if (s) {
+      var copy = Object.assign({}, b);
+      if (s.read !== undefined) copy.read = s.read;
+      if (s.owned !== undefined) copy.owned = s.owned;
+      return copy;
+    }
+    return b;
+  });
+}
+// Migrate old single-profile data if it exists
+(function migrateOldData() {
+  try {
+    var old = localStorage.getItem("cosmere_catalogue_progress");
+    if (old && !localStorage.getItem(LS_PROFILES)) {
+      var profiles = {};
+      profiles[DEFAULT_PROFILE] = JSON.parse(old);
+      saveProfiles(profiles);
+      localStorage.removeItem("cosmere_catalogue_progress");
+    }
+  } catch(e) {}
+})();
+
 // ── Main App ──
 function App() {
-  var booksState = useState(B0);
+  var profState = useState(getActiveProfile);
+  var activeProfile = profState[0];
+  var setActiveProfile = profState[1];
+  var dropState = useState(false);
+  var dropOpen = dropState[0];
+  var setDropOpen = dropState[1];
+  var newState = useState(false);
+  var showNew = newState[0];
+  var setShowNew = newState[1];
+  var nameState = useState("");
+  var newName = nameState[0];
+  var setNewName = nameState[1];
+
+  var booksState = useState(function() { return applyProfileData(B0, "", getActiveProfile()); });
   var books = booksState[0];
   var setBooks = booksState[1];
-  var auState = useState(AU0);
+  var auState = useState(function() { return applyProfileData(AU0, "au_", getActiveProfile()); });
   var au = auState[0];
   var setAu = auState[1];
   var tabState = useState("list");
@@ -950,6 +1942,46 @@ function App() {
   var saState = useState(false);
   var sa = saState[0];
   var setSA = saState[1];
+
+  // Persist progress to localStorage on every change
+  useEffect(function() { saveProfileData(activeProfile, books, au); }, [books, au, activeProfile]);
+
+  function switchProfile(name) {
+    // Save current first
+    saveProfileData(activeProfile, books, au);
+    saveActiveProfile(name);
+    setActiveProfile(name);
+    setBooks(applyProfileData(B0, "", name));
+    setAu(applyProfileData(AU0, "au_", name));
+    setDropOpen(false);
+  }
+  function createProfile(name) {
+    if (!name.trim()) return;
+    var clean = name.trim();
+    saveActiveProfile(clean);
+    setActiveProfile(clean);
+    // New profile starts with all books unread
+    var freshBooks = B0.map(function(b) { return Object.assign({}, b, {read:false, owned:false}); });
+    var freshAu = AU0.map(function(s) { return Object.assign({}, s, {read:false}); });
+    setBooks(freshBooks);
+    setAu(freshAu);
+    saveProfileData(clean, freshBooks, freshAu);
+    setShowNew(false);
+    setNewName("");
+    setDropOpen(false);
+  }
+  function deleteProfile(name) {
+    if (name === DEFAULT_PROFILE) return;
+    var profiles = getProfiles();
+    delete profiles[name];
+    saveProfiles(profiles);
+    if (activeProfile === name) {
+      switchProfile(DEFAULT_PROFILE);
+    }
+    setDropOpen(false);
+  }
+  var profileNames = Object.keys(getProfiles());
+  if (profileNames.indexOf(DEFAULT_PROFILE) === -1) profileNames.unshift(DEFAULT_PROFILE);
 
   var sp = mkSp(books, au, sa);
 
@@ -973,8 +2005,9 @@ function App() {
   var tabs = [
     {k:"list",l:"📚 List"},
     {k:"worlds",l:"🌍 Worlds"},
-    {k:"shards",l:"◆ Shards"},
+    {k:"shards",l:"✦ Star Map"},
     {k:"hoid",l:"🎭 Hoid"},
+    {k:"connections",l:"🕸 Connections"},
     {k:"time",l:"⏳ Timeline"}
   ];
 
@@ -983,7 +2016,40 @@ function App() {
       <div style={{padding:"48px 24px 24px",textAlign:"center",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"radial-gradient(ellipse at 50% 0%,rgba(74,158,255,0.08),transparent 60%)",pointerEvents:"none"}} />
         <div style={{fontSize:"11px",letterSpacing:"6px",textTransform:"uppercase",color:"#64748b",fontFamily:"'Cinzel',serif",marginBottom:"12px"}}>Brandon Sanderson</div>
-        <h1 style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(28px,5vw,42px)",fontWeight:600,margin:"0 0 28px",background:"linear-gradient(135deg,#e2e8f0,#94a3b8 50%,#e2e8f0)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:"2px"}}>Cosmere Catalogue</h1>
+        <h1 style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(28px,5vw,42px)",fontWeight:600,margin:"0 0 16px",background:"linear-gradient(135deg,#e2e8f0,#94a3b8 50%,#e2e8f0)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:"2px"}}>Cosmere Catalogue</h1>
+
+        {/* Profile selector */}
+        <div style={{position:"relative",display:"inline-block",marginBottom:"20px"}}>
+          <button onClick={function(){setDropOpen(!dropOpen);setShowNew(false);}} style={{display:"flex",alignItems:"center",gap:"8px",padding:"6px 16px",background:"#1e293b",border:"1px solid #334155",borderRadius:"8px",cursor:"pointer",color:"#e2e8f0",fontFamily:"'Cinzel',serif",fontSize:"13px"}}>
+            <span style={{color:"#64748b",fontSize:"11px"}}>{"👤"}</span>
+            <span>{activeProfile}</span>
+            <span style={{color:"#475569",fontSize:"10px",marginLeft:"4px"}}>{dropOpen ? "▲" : "▼"}</span>
+          </button>
+          {dropOpen && (
+            <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",marginTop:"4px",background:"#1e293b",border:"1px solid #334155",borderRadius:"8px",minWidth:"180px",zIndex:100,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}>
+              {profileNames.map(function(name) {
+                var isActive = name === activeProfile;
+                var isDefault = name === DEFAULT_PROFILE;
+                return (
+                  <div key={name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",borderBottom:"1px solid #334155",background:isActive?"#334155":"transparent",cursor:"pointer"}} onClick={function(){if(!isActive)switchProfile(name);}}>
+                    <span style={{fontSize:"13px",color:isActive?"#e2e8f0":"#94a3b8",fontFamily:"'Cinzel',serif"}}>{isActive?"✓ ":""}{name}</span>
+                    {!isDefault && !isActive && (
+                      <button onClick={function(e){e.stopPropagation();if(confirm("Delete profile \""+name+"\"?"))deleteProfile(name);}} style={{background:"transparent",border:"none",color:"#64748b",cursor:"pointer",fontSize:"12px",padding:"2px 6px"}}>{"✕"}</button>
+                    )}
+                  </div>
+                );
+              })}
+              {!showNew ? (
+                <div onClick={function(){setShowNew(true);}} style={{padding:"8px 14px",cursor:"pointer",color:"#4a9eff",fontSize:"13px",fontFamily:"'Cinzel',serif"}}>{"+ New Profile"}</div>
+              ) : (
+                <div style={{padding:"8px 14px",display:"flex",gap:"6px"}}>
+                  <input value={newName} onChange={function(e){setNewName(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")createProfile(newName);}} placeholder="Name..." style={{flex:1,padding:"4px 8px",background:"#0f172a",border:"1px solid #475569",borderRadius:"4px",color:"#e2e8f0",fontSize:"13px",fontFamily:"'Crimson Text',serif",outline:"none"}} autoFocus />
+                  <button onClick={function(){createProfile(newName);}} style={{padding:"4px 10px",background:"#4a9eff",border:"none",borderRadius:"4px",color:"#fff",fontSize:"12px",cursor:"pointer"}}>Add</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div style={{display:"flex",justifyContent:"center",gap:"clamp(20px,4vw,40px)",flexWrap:"wrap",marginBottom:"24px"}}>
           <div style={{textAlign:"center"}}>
@@ -1033,6 +2099,7 @@ function App() {
         {tab === "worlds" && <TabWorlds books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
         {tab === "shards" && <TabShards books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
         {tab === "hoid" && <TabHoid books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
+        {tab === "connections" && <TabConnections books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
         {tab === "time" && <TabTime books={allBooks} sa={sa} setSA={setSA} sp={sp} />}
       </div>
     </div>
