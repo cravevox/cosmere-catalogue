@@ -6,7 +6,7 @@
   <title>Cosmere Catalogue</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0c14; overflow-x: hidden; }
@@ -26,6 +26,930 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── "The Shattering" animation harness (from Claude Design bundle) ──
+// Easing, interpolate, Sprite, Stage, PlaybackBar. Stage modified to:
+//   • treat persistKey as optional (skip localStorage when falsy)
+//   • fire onEnded once when loop=false and playhead reaches duration
+//   • restart on change of restartSignal prop
+// ═══════════════════════════════════════════════════════════════════════════
+
+const Easing = {
+  linear: (t) => t,
+  easeInQuad:    (t) => t * t,
+  easeOutQuad:   (t) => t * (2 - t),
+  easeInOutQuad: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+  easeInCubic:    (t) => t * t * t,
+  easeOutCubic:   (t) => (--t) * t * t + 1,
+  easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1),
+  easeInQuart:    (t) => t * t * t * t,
+  easeOutQuart:   (t) => 1 - (--t) * t * t * t,
+  easeInOutQuart: (t) => (t < 0.5 ? 8 * t * t * t * t : 1 - 8 * (--t) * t * t * t),
+  easeInExpo:  (t) => (t === 0 ? 0 : Math.pow(2, 10 * (t - 1))),
+  easeOutExpo: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  easeInOutExpo: (t) => {
+    if (t === 0) return 0;
+    if (t === 1) return 1;
+    if (t < 0.5) return 0.5 * Math.pow(2, 20 * t - 10);
+    return 1 - 0.5 * Math.pow(2, -20 * t + 10);
+  },
+  easeInSine:    (t) => 1 - Math.cos((t * Math.PI) / 2),
+  easeOutSine:   (t) => Math.sin((t * Math.PI) / 2),
+  easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  easeOutBack: (t) => {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  },
+  easeInBack: (t) => {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return c3 * t * t * t - c1 * t * t;
+  },
+  easeInOutBack: (t) => {
+    const c1 = 1.70158, c2 = c1 * 1.525;
+    return t < 0.5
+      ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2
+      : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2;
+  },
+  easeOutElastic: (t) => {
+    const c4 = (2 * Math.PI) / 3;
+    if (t === 0) return 0;
+    if (t === 1) return 1;
+    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+  },
+};
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function interpolate(input, output, ease = Easing.linear) {
+  return (t) => {
+    if (t <= input[0]) return output[0];
+    if (t >= input[input.length - 1]) return output[output.length - 1];
+    for (let i = 0; i < input.length - 1; i++) {
+      if (t >= input[i] && t <= input[i + 1]) {
+        const span = input[i + 1] - input[i];
+        const local = span === 0 ? 0 : (t - input[i]) / span;
+        const easeFn = Array.isArray(ease) ? (ease[i] || Easing.linear) : ease;
+        const eased = easeFn(local);
+        return output[i] + (output[i + 1] - output[i]) * eased;
+      }
+    }
+    return output[output.length - 1];
+  };
+}
+
+const TimelineContext = React.createContext({ time: 0, duration: 10, playing: false });
+const useTime = () => React.useContext(TimelineContext).time;
+const useTimeline = () => React.useContext(TimelineContext);
+
+function Stage({
+  width = 1280,
+  height = 720,
+  duration = 10,
+  background = '#f6f4ef',
+  loop = true,
+  autoplay = true,
+  persistKey = null,
+  onEnded,
+  restartSignal,
+  hideControls = false,
+  children,
+}) {
+  const [time, setTime] = React.useState(() => {
+    if (!persistKey) return 0;
+    try {
+      const v = parseFloat(localStorage.getItem(persistKey + ':t') || '0');
+      return isFinite(v) ? clamp(v, 0, duration) : 0;
+    } catch { return 0; }
+  });
+  const [playing, setPlaying] = React.useState(autoplay);
+  const [hoverTime, setHoverTime] = React.useState(null);
+  const [scale, setScale] = React.useState(1);
+
+  const stageRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  const lastTsRef = React.useRef(null);
+  const endedFiredRef = React.useRef(false);
+  const firstRestartRef = React.useRef(true);
+
+  React.useEffect(() => {
+    if (!persistKey) return;
+    try { localStorage.setItem(persistKey + ':t', String(time)); } catch {}
+  }, [time, persistKey]);
+
+  React.useEffect(() => {
+    if (!stageRef.current) return;
+    const el = stageRef.current;
+    const measure = () => {
+      const barH = hideControls ? 0 : 44;
+      const s = Math.min(
+        el.clientWidth / width,
+        (el.clientHeight - barH) / height
+      );
+      setScale(Math.max(0.05, s));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [width, height, hideControls]);
+
+  React.useEffect(() => {
+    if (!playing) {
+      lastTsRef.current = null;
+      return;
+    }
+    const step = (ts) => {
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = (ts - lastTsRef.current) / 1000;
+      lastTsRef.current = ts;
+      setTime((t) => {
+        let next = t + dt;
+        if (next >= duration) {
+          if (loop) next = next % duration;
+          else { next = duration; setPlaying(false); }
+        }
+        return next;
+      });
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      lastTsRef.current = null;
+    };
+  }, [playing, duration, loop]);
+
+  // Fire onEnded exactly once when we reach the end in non-loop mode.
+  React.useEffect(() => {
+    if (!loop && time >= duration && !endedFiredRef.current) {
+      endedFiredRef.current = true;
+      if (onEnded) onEnded();
+    }
+  }, [time, loop, duration, onEnded]);
+
+  // Restart when restartSignal changes (skip the initial mount).
+  React.useEffect(() => {
+    if (firstRestartRef.current) { firstRestartRef.current = false; return; }
+    endedFiredRef.current = false;
+    setTime(0);
+    setPlaying(true);
+  }, [restartSignal]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setPlaying(p => !p);
+      } else if (e.code === 'ArrowLeft') {
+        setTime(t => clamp(t - (e.shiftKey ? 1 : 0.1), 0, duration));
+      } else if (e.code === 'ArrowRight') {
+        setTime(t => clamp(t + (e.shiftKey ? 1 : 0.1), 0, duration));
+      } else if (e.key === '0' || e.code === 'Home') {
+        setTime(0);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [duration]);
+
+  const displayTime = hoverTime != null ? hoverTime : time;
+
+  const ctxValue = React.useMemo(
+    () => ({ time: displayTime, duration, playing, setTime, setPlaying }),
+    [displayTime, duration, playing]
+  );
+
+  return (
+    <div
+      ref={stageRef}
+      style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center',
+        background: '#0a0a0a',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div style={{
+        flex: 1,
+        width: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+        minHeight: 0,
+      }}>
+        <div
+          style={{
+            width, height,
+            background,
+            position: 'relative',
+            transform: `scale(${scale})`,
+            transformOrigin: 'center',
+            flexShrink: 0,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            overflow: 'hidden',
+          }}
+        >
+          <TimelineContext.Provider value={ctxValue}>
+            {children}
+          </TimelineContext.Provider>
+        </div>
+      </div>
+      {!hideControls && (
+        <PlaybackBar
+          time={displayTime}
+          duration={duration}
+          playing={playing}
+          onPlayPause={() => setPlaying(p => !p)}
+          onReset={() => { endedFiredRef.current = false; setTime(0); }}
+          onSeek={(t) => { if (t < duration) endedFiredRef.current = false; setTime(t); }}
+          onHover={(t) => setHoverTime(t)}
+        />
+      )}
+    </div>
+  );
+}
+
+function PlaybackBar({ time, duration, playing, onPlayPause, onReset, onSeek, onHover }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+
+  const timeFromEvent = React.useCallback((e) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    return x * duration;
+  }, [duration]);
+
+  const onTrackMove = (e) => {
+    if (!trackRef.current) return;
+    const t = timeFromEvent(e);
+    if (dragging) onSeek(t);
+    else onHover(t);
+  };
+
+  const onTrackLeave = () => { if (!dragging) onHover(null); };
+
+  const onTrackDown = (e) => {
+    setDragging(true);
+    onSeek(timeFromEvent(e));
+    onHover(null);
+  };
+
+  React.useEffect(() => {
+    if (!dragging) return;
+    const onUp = () => setDragging(false);
+    const onMove = (e) => {
+      if (!trackRef.current) return;
+      onSeek(timeFromEvent(e));
+    };
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mousemove', onMove);
+    return () => {
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mousemove', onMove);
+    };
+  }, [dragging, timeFromEvent, onSeek]);
+
+  const pct = duration > 0 ? (time / duration) * 100 : 0;
+  const fmt = (t) => {
+    const total = Math.max(0, t);
+    const m = Math.floor(total / 60);
+    const s = Math.floor(total % 60);
+    const cs = Math.floor((total * 100) % 100);
+    return `${String(m).padStart(1, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+  };
+
+  const mono = 'JetBrains Mono, ui-monospace, SFMono-Regular, monospace';
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '8px 16px',
+      background: 'rgba(20,20,20,0.92)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      width: '100%',
+      maxWidth: 680,
+      alignSelf: 'center',
+      borderRadius: 8,
+      color: '#f6f4ef',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      userSelect: 'none',
+      flexShrink: 0,
+    }}>
+      <IconButton onClick={onReset} title="Return to start (0)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 2v10M12 2L5 7l7 5V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+        </svg>
+      </IconButton>
+      <IconButton onClick={onPlayPause} title="Play/pause (space)">
+        {playing ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="3" y="2" width="3" height="10" fill="currentColor"/>
+            <rect x="8" y="2" width="3" height="10" fill="currentColor"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 2l9 5-9 5V2z" fill="currentColor"/>
+          </svg>
+        )}
+      </IconButton>
+      <div style={{
+        fontFamily: mono, fontSize: 12, fontVariantNumeric: 'tabular-nums',
+        width: 64, textAlign: 'right', color: '#f6f4ef',
+      }}>{fmt(time)}</div>
+      <div
+        ref={trackRef}
+        onMouseMove={onTrackMove}
+        onMouseLeave={onTrackLeave}
+        onMouseDown={onTrackDown}
+        style={{
+          flex: 1, height: 22, position: 'relative',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+        }}
+      >
+        <div style={{position:'absolute', left:0, right:0, height:4, background:'rgba(255,255,255,0.12)', borderRadius:2}}/>
+        <div style={{position:'absolute', left:0, width:`${pct}%`, height:4, background:'oklch(72% 0.12 250)', borderRadius:2}}/>
+        <div style={{position:'absolute', left:`${pct}%`, top:'50%', width:12, height:12, marginLeft:-6, marginTop:-6, background:'#fff', borderRadius:6, boxShadow:'0 2px 4px rgba(0,0,0,0.4)'}}/>
+      </div>
+      <div style={{
+        fontFamily: mono, fontSize: 12, fontVariantNumeric: 'tabular-nums',
+        width: 64, textAlign: 'left', color: 'rgba(246,244,239,0.55)',
+      }}>{fmt(duration)}</div>
+    </div>
+  );
+}
+
+function IconButton({ children, onClick, title }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        width: 28, height: 28,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: hover ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 6,
+        color: '#f6f4ef',
+        cursor: 'pointer',
+        padding: 0,
+        transition: 'background 120ms',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── "The Shattering" scene components (from Claude Design bundle, v2) ──
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SH_INK   = '#0a0d18';
+const SH_GOLD  = '#e8c370';
+const SH_IVORY = '#efe6cf';
+const SH_DIM   = 'rgba(239,230,207,0.45)';
+const SH_SERIF = '"Cormorant Garamond", "EB Garamond", Georgia, serif';
+const SH_MONO  = '"IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace';
+
+// 16 Shard intents, paired as opposites across the ring (i ↔ i+8).
+const SH_INTENTS = [
+  'HONOR', 'RUIN', 'DEVOTION', 'ENDOWMENT',
+  'CULTIVATION', 'MERCY', 'WHIMSY', 'INVENTION',
+  'ODIUM', 'PRESERVATION', 'DOMINION', 'AUTONOMY',
+  'AMBITION', 'VALOR', 'VIRTUOSITY', 'REASON',
+];
+
+// Hues chosen so opposites sit across the color wheel.
+const SH_HUES = [
+  45, 330, 285, 30, 135, 195, 60, 220,
+  225, 150, 105, 210, 315, 15, 240, 40,
+];
+
+const SH_STARS = Array.from({ length: 110 }, (_, i) => {
+  const r = (k) => {
+    const x = Math.sin((i + 1) * 9301 + k * 49297) * 233280;
+    return x - Math.floor(x);
+  };
+  return {
+    x: r(1) * 1920,
+    y: r(2) * 1080,
+    s: 0.4 + r(3) * 1.4,
+    tw: r(4) * Math.PI * 2,
+    tws: 0.6 + r(5) * 1.2,
+  };
+});
+
+function ShStarfield() {
+  const t = useTime();
+  return (
+    <svg width={1920} height={1080} style={{position:'absolute', inset:0}}>
+      {SH_STARS.map((s, i) => {
+        const tw = 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * s.tws + s.tw));
+        return (
+          <circle key={i} cx={s.x} cy={s.y} r={s.s} fill={SH_IVORY} opacity={tw * 0.9}/>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ShChartFrame() {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  const zoom = interpolate([0, 6, 11, 18], [1.12, 1.05, 0.96, 0.88], Easing.easeInOutCubic)(t);
+  const chartOp = interpolate([0, 1.5, 3], [0, 0.25, 1], Easing.easeOutCubic)(t);
+  const crack = interpolate([5.6, 6.0, 7.0, 9, 18], [0, 1, 1, 1, 1], Easing.easeOutCubic)(t);
+  const ringOp = interpolate([0, 3, 6, 6.8, 9, 18], [0, 1, 1, 0.35, 0.35, 0.5], Easing.easeInOutCubic)(t);
+  const rings = [160, 230, 310, 400, 500];
+  const ticksOuter = 72;
+  return (
+    <svg width={1920} height={1080} style={{
+      position:'absolute', inset:0,
+      transform: `scale(${zoom})`, transformOrigin: '960px 540px',
+      opacity: chartOp,
+    }}>
+      <defs>
+        <radialGradient id="sh-vignette" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor={SH_INK} stopOpacity="0"/>
+          <stop offset="75%" stopColor={SH_INK} stopOpacity="0.2"/>
+          <stop offset="100%" stopColor={SH_INK} stopOpacity="0.85"/>
+        </radialGradient>
+      </defs>
+      <g opacity={ringOp * 0.35} stroke={SH_GOLD} strokeWidth="0.6">
+        <line x1={cx} y1={40}  x2={cx} y2={1040}/>
+        <line x1={40} y1={cy}  x2={1880} y2={cy}/>
+        <line x1={260} y1={120} x2={1660} y2={960} />
+        <line x1={1660} y1={120} x2={260} y2={960} />
+      </g>
+      <g opacity={ringOp * 0.5}>
+        {Array.from({length: ticksOuter}).map((_, i) => {
+          const a = (i / ticksOuter) * Math.PI * 2;
+          const r1 = 510, r2 = i % 6 === 0 ? 528 : 520;
+          const x1 = cx + Math.cos(a) * r1, y1 = cy + Math.sin(a) * r1;
+          const x2 = cx + Math.cos(a) * r2, y2 = cy + Math.sin(a) * r2;
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={SH_GOLD} strokeWidth="0.6"/>;
+        })}
+      </g>
+      <g opacity={ringOp}>
+        {rings.map((r, i) => {
+          const segs = 16;
+          const gap = 0.005 + crack * 0.06 * (1 + i * 0.08);
+          return (
+            <g key={i}>
+              {Array.from({length: segs}).map((_, k) => {
+                const a0 = (k / segs) * Math.PI * 2 + gap/2;
+                const a1 = ((k+1) / segs) * Math.PI * 2 - gap/2;
+                const x0 = cx + Math.cos(a0)*r, y0 = cy + Math.sin(a0)*r;
+                const x1 = cx + Math.cos(a1)*r, y1 = cy + Math.sin(a1)*r;
+                const large = (a1 - a0) > Math.PI ? 1 : 0;
+                return (
+                  <path key={k}
+                    d={`M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`}
+                    stroke={SH_GOLD}
+                    strokeWidth={i === 0 ? 1.2 : 0.7}
+                    fill="none"
+                    opacity={i === 0 ? 0.95 : 0.55 - i * 0.07}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
+      <rect x="0" y="0" width="1920" height="1080" fill="url(#sh-vignette)"/>
+    </svg>
+  );
+}
+
+function ShTheOne() {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  const orbOp = interpolate([0.4, 1.8, 5.2, 6.0], [0, 1, 1, 0], Easing.easeInOutCubic)(t);
+  const pulse = 1 + 0.04 * Math.sin(t * 1.8);
+  const tremor = t > 5.5 && t < 6.05 ? Math.sin(t * 120) * (t - 5.5) * 18 : 0;
+  return (
+    <svg width={1920} height={1080} style={{position:'absolute', inset:0}}>
+      <defs>
+        <radialGradient id="sh-orbCore" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stopColor="#fff6d6" stopOpacity="1"/>
+          <stop offset="35%" stopColor="#ffe8a6" stopOpacity="0.95"/>
+          <stop offset="70%" stopColor="#e8a744" stopOpacity="0.55"/>
+          <stop offset="100%" stopColor="#c07a20" stopOpacity="0"/>
+        </radialGradient>
+        <radialGradient id="sh-orbHalo" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stopColor="#ffe8a6" stopOpacity="0.55"/>
+          <stop offset="60%" stopColor="#e8a744" stopOpacity="0.15"/>
+          <stop offset="100%" stopColor="#e8a744" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+      <g opacity={orbOp} transform={`translate(${tremor}, 0)`}>
+        <circle cx={cx} cy={cy} r={260 * pulse} fill="url(#sh-orbHalo)"/>
+        <circle cx={cx} cy={cy} r={130 * pulse} fill="url(#sh-orbCore)"/>
+        <circle cx={cx} cy={cy} r={38 * pulse} fill="#fff8e1"/>
+      </g>
+    </svg>
+  );
+}
+
+function ShOneLabel() {
+  const t = useTime();
+  const op = interpolate([1.2, 2.2, 5.0, 5.8], [0, 1, 1, 0], Easing.easeInOutCubic)(t);
+  const dropIn = interpolate([1.2, 2.4], [12, 0], Easing.easeOutCubic)(t);
+  return (
+    <div style={{position:'absolute', left:0, top:0, width:1920, height:1080, opacity: op, pointerEvents:'none'}}>
+      <div style={{position:'absolute', left:'50%', top: 200, transform: `translate(-50%, ${dropIn}px)`, textAlign:'center'}}>
+        <div style={{fontFamily: SH_MONO, fontSize: 14, color: SH_GOLD, letterSpacing:'0.5em', textTransform:'uppercase', marginBottom: 20}}>
+          fig. I &nbsp;·&nbsp; before the sixteen
+        </div>
+        <div style={{fontFamily: SH_SERIF, fontSize: 72, color: SH_IVORY, letterSpacing:'0.02em', fontStyle:'italic', fontWeight: 400}}>
+          Adonalsium
+        </div>
+        <div style={{fontFamily: SH_MONO, fontSize: 13, color: SH_DIM, letterSpacing:'0.35em', textTransform:'uppercase', marginTop: 14}}>
+          the one &nbsp;·&nbsp; the whole &nbsp;·&nbsp; the undivided
+        </div>
+      </div>
+      <div style={{position:'absolute', left:'50%', bottom: 140, transform:'translateX(-50%)', textAlign:'center', maxWidth: 1100}}>
+        <div style={{fontFamily: SH_SERIF, fontSize: 34, color: SH_IVORY, fontStyle:'italic', lineHeight: 1.35, textWrap:'balance'}}>
+          Before the Shattering, there was but one.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShShards({ settleRadius, shardSize }) {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  const shardOp = interpolate([5.95, 6.05, 17.5, 18.0], [0, 1, 1, 0], Easing.linear)(t);
+  return (
+    <svg width={1920} height={1080} style={{position:'absolute', inset:0}}>
+      <defs>
+        {SH_HUES.map((h, i) => (
+          <radialGradient key={i} id={`sh-shard${i}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%"  stopColor={`oklch(92% 0.14 ${h})`} stopOpacity="1"/>
+            <stop offset="55%" stopColor={`oklch(75% 0.18 ${h})`} stopOpacity="0.9"/>
+            <stop offset="100%" stopColor={`oklch(55% 0.18 ${h})`} stopOpacity="0"/>
+          </radialGradient>
+        ))}
+      </defs>
+      <g opacity={shardOp}>
+        {SH_INTENTS.map((name, i) => {
+          const angle = (i / 16) * Math.PI * 2 - Math.PI / 2;
+          const r = interpolate(
+            [6.0, 9.0, 18],
+            [0, settleRadius, settleRadius],
+            Easing.easeOutBack
+          )(t);
+          const size = interpolate(
+            [6.0, 6.3, 6.7, 9.0, 18],
+            [6, shardSize * 0.85, shardSize * 2, shardSize, shardSize],
+            Easing.easeInOutCubic
+          )(t);
+          const halo = interpolate(
+            [6.0, 6.4, 6.8, 9.0, 18],
+            [0, 1.4, 1.0, 0.9, 0.9],
+            Easing.easeInOutCubic
+          )(t);
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          const trailStartT = 6.05;
+          const trailOp = interpolate(
+            [6.0, 6.3, 7.2, 8.4, 9.2, 18],
+            [0, 0.4, 0.55, 0.3, 0.18, 0.18],
+            Easing.easeInOutCubic
+          )(t);
+          const trailR = Math.min(r, 520);
+          return (
+            <g key={i}>
+              {t > trailStartT && (
+                <line
+                  x1={cx} y1={cy}
+                  x2={cx + Math.cos(angle) * trailR}
+                  y2={cy + Math.sin(angle) * trailR}
+                  stroke={`oklch(78% 0.14 ${SH_HUES[i]})`}
+                  strokeWidth="0.8"
+                  opacity={trailOp}
+                  strokeDasharray="1 4"
+                />
+              )}
+              <circle cx={x} cy={y} r={size * 2.4} fill={`url(#sh-shard${i})`} opacity={halo * 0.55}/>
+              <circle cx={x} cy={y} r={size * 0.45} fill="#fff8e1" opacity={halo}/>
+              <circle cx={x} cy={y} r={size * 0.8}  fill={`oklch(82% 0.17 ${SH_HUES[i]})`} opacity={halo * 0.7}/>
+            </g>
+          );
+        })}
+      </g>
+      <ShFlashFrame />
+    </svg>
+  );
+}
+
+function ShFlashFrame() {
+  const t = useTime();
+  const op = interpolate([5.95, 6.0, 6.35], [0, 1, 0], Easing.easeOutCubic)(t);
+  if (op < 0.01) return null;
+  return (
+    <g opacity={op}>
+      <rect x={0} y={0} width={1920} height={1080} fill="#fff8e1" opacity={0.85}/>
+    </g>
+  );
+}
+
+// Pair reveal order by thematic weight.
+const SH_PAIR_ORDER = [0, 1, 2, 4, 3, 5, 6, 7];
+
+function ShPairReveal({ settleRadius }) {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  const REVEAL_START = 10.6;
+  const PAIR_DUR = 0.34;
+  const masterOp = interpolate(
+    [REVEAL_START - 0.1, REVEAL_START + 0.2, 17.4, 17.9],
+    [0, 1, 1, 0],
+    Easing.easeInOutCubic
+  )(t);
+  const endR = settleRadius - 18;
+  return (
+    <svg width={1920} height={1080} style={{position:'absolute', inset:0, pointerEvents:'none', opacity: masterOp}}>
+      <defs>
+        {SH_PAIR_ORDER.map((p) => {
+          const a = SH_HUES[p];
+          const b = SH_HUES[p + 8];
+          const angle = (p / 16) * Math.PI * 2 - Math.PI / 2;
+          const x1 = cx + Math.cos(angle) * endR;
+          const y1 = cy + Math.sin(angle) * endR;
+          const x2 = cx - Math.cos(angle) * endR;
+          const y2 = cy - Math.sin(angle) * endR;
+          return (
+            <linearGradient key={p} id={`sh-axis${p}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}>
+              <stop offset="0%"   stopColor={`oklch(85% 0.18 ${a})`}/>
+              <stop offset="48%"  stopColor={SH_IVORY} stopOpacity="0.9"/>
+              <stop offset="52%"  stopColor={SH_IVORY} stopOpacity="0.9"/>
+              <stop offset="100%" stopColor={`oklch(85% 0.18 ${b})`}/>
+            </linearGradient>
+          );
+        })}
+      </defs>
+      {SH_PAIR_ORDER.map((p, orderIdx) => {
+        const angle = (p / 16) * Math.PI * 2 - Math.PI / 2;
+        const x1 = cx + Math.cos(angle) * endR;
+        const y1 = cy + Math.sin(angle) * endR;
+        const x2 = cx - Math.cos(angle) * endR;
+        const y2 = cy - Math.sin(angle) * endR;
+        const pStart = REVEAL_START + orderIdx * PAIR_DUR;
+        const pMid   = pStart + PAIR_DUR * 0.55;
+        const pEnd   = pStart + PAIR_DUR;
+        const drawProg = interpolate([pStart, pMid], [0, 1], Easing.easeOutCubic)(t);
+        const flashOp = interpolate(
+          [pStart, pMid, pEnd, 17.4, 17.9],
+          [0, 1, 0.45, 0.45, 0],
+          Easing.easeOutCubic
+        )(t);
+        const glowOp = interpolate(
+          [pStart - 0.05, pMid, pEnd + 0.1],
+          [0, 0.8, 0],
+          Easing.easeInOutCubic
+        )(t);
+        const pathLen = 2 * endR;
+        const dashOffset = (1 - drawProg) * pathLen;
+        return (
+          <g key={p}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={`url(#sh-axis${p})`} strokeWidth={10} strokeLinecap="round"
+              opacity={glowOp * 0.35} style={{filter: 'blur(6px)'}}/>
+            <line x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={`url(#sh-axis${p})`} strokeWidth={1.6} strokeLinecap="round"
+              opacity={flashOp}
+              strokeDasharray={pathLen} strokeDashoffset={dashOffset} pathLength={pathLen}/>
+          </g>
+        );
+      })}
+      <circle cx={cx} cy={cy} r={3} fill={SH_GOLD}
+        opacity={interpolate([REVEAL_START, REVEAL_START + 0.3, 17.4, 17.9], [0, 0.75, 0.35, 0], Easing.easeInOutCubic)(t)}/>
+    </svg>
+  );
+}
+
+function ShPairFlares({ settleRadius }) {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  const REVEAL_START = 10.6;
+  const PAIR_DUR = 0.34;
+  const flareAt = (orderIdx) => {
+    const pStart = REVEAL_START + orderIdx * PAIR_DUR;
+    const pMid   = pStart + PAIR_DUR * 0.55;
+    const pEnd   = pStart + PAIR_DUR;
+    return interpolate([pStart, pMid, pEnd], [0, 1, 0], Easing.easeOutCubic)(t);
+  };
+  return (
+    <svg width={1920} height={1080} style={{position:'absolute', inset:0, pointerEvents:'none'}}>
+      {SH_PAIR_ORDER.map((p, orderIdx) => {
+        const angleA = (p / 16) * Math.PI * 2 - Math.PI / 2;
+        const angleB = angleA + Math.PI;
+        const xa = cx + Math.cos(angleA) * settleRadius;
+        const ya = cy + Math.sin(angleA) * settleRadius;
+        const xb = cx + Math.cos(angleB) * settleRadius;
+        const yb = cy + Math.sin(angleB) * settleRadius;
+        const op = flareAt(orderIdx);
+        if (op < 0.01) return null;
+        return (
+          <g key={p} opacity={op}>
+            <circle cx={xa} cy={ya} r={68} fill={`oklch(80% 0.15 ${SH_HUES[p]})`}   opacity={0.35} style={{filter:'blur(12px)'}}/>
+            <circle cx={xb} cy={yb} r={68} fill={`oklch(80% 0.15 ${SH_HUES[p+8]})`} opacity={0.35} style={{filter:'blur(12px)'}}/>
+            <circle cx={xa} cy={ya} r={18} fill="#fff8e1" opacity={0.9}/>
+            <circle cx={xb} cy={yb} r={18} fill="#fff8e1" opacity={0.9}/>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ShShardLabels({ labelR, showNumerals, sp }) {
+  const t = useTime();
+  const cx = 960, cy = 540;
+  return (
+    <div style={{position:'absolute', inset:0, pointerEvents:'none'}}>
+      {SH_INTENTS.map((name, i) => {
+        const gate = SH_GATE_BY_NAME[name] || [];
+        const revealed = !sp || sp.u(gate);
+        const display = revealed ? name : '\u2014';
+        const angle = (i / 16) * Math.PI * 2 - Math.PI / 2;
+        const x = cx + Math.cos(angle) * labelR;
+        const yRaw = cy + Math.sin(angle) * labelR;
+        const y = Math.max(72, Math.min(1008, yRaw));
+        const start = 9.0 + i * 0.05;
+        const op = interpolate([start, start + 0.5, 17.4, 17.9], [0, 1, 1, 0], Easing.easeInOutCubic)(t);
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        let translateX, textAlign;
+        if (Math.abs(cos) < 0.3) { translateX = '-50%'; textAlign = 'center'; }
+        else if (cos > 0)        { translateX = '0';    textAlign = 'left'; }
+        else                     { translateX = '-100%'; textAlign = 'right'; }
+        let translateY;
+        if (Math.abs(sin) < 0.3) translateY = '-50%';
+        else if (sin > 0)        translateY = '0';
+        else                     translateY = '-100%';
+        const tickInner = 420;
+        const tickOuter = labelR - 30;
+        const tx1 = cx + cos * tickInner, ty1 = cy + sin * tickInner;
+        const tx2 = cx + cos * tickOuter, ty2 = cy + sin * tickOuter;
+        return (
+          <React.Fragment key={i}>
+            <svg width={1920} height={1080} style={{position:'absolute', inset:0, opacity: op * 0.45, pointerEvents:'none'}}>
+              <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke={SH_GOLD} strokeWidth="0.6" strokeDasharray="1 3"/>
+            </svg>
+            <div style={{
+              position:'absolute', left: x, top: y,
+              transform: `translate(${translateX}, ${translateY})`,
+              fontFamily: SH_MONO, fontSize: 13, color: SH_IVORY,
+              letterSpacing:'0.28em', opacity: op, whiteSpace:'nowrap',
+              textAlign, padding: '2px 6px',
+            }}>
+              {showNumerals && (
+                <div style={{fontFamily: SH_MONO, fontSize: 9, color: SH_GOLD, letterSpacing:'0.3em', marginBottom: 3, opacity: 0.75}}>
+                  {String(i+1).padStart(2,'0')} / XVI
+                </div>
+              )}
+              {display}
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShClosingProse() {
+  const t = useTime();
+  const op = interpolate([13.8, 14.8, 17.4, 17.9], [0, 1, 1, 0], Easing.easeInOutCubic)(t);
+  const drop = interpolate([13.8, 15.0], [8, 0], Easing.easeOutCubic)(t);
+  return (
+    <div style={{
+      position:'absolute', left:'50%', top: '50%',
+      transform:`translate(-50%, calc(-50% + ${drop}px))`,
+      opacity: op, textAlign:'center', width: 620, pointerEvents:'none',
+    }}>
+      <div style={{fontFamily: SH_MONO, fontSize: 11, color: SH_GOLD, letterSpacing:'0.5em', textTransform:'uppercase', marginBottom: 18}}>
+        fig. II &nbsp;·&nbsp; after the shattering
+      </div>
+      <div style={{fontFamily: SH_SERIF, fontSize: 32, color: SH_IVORY, fontStyle:'italic', lineHeight: 1.4, textWrap:'balance'}}>
+        Sixteen pieces of the shattered god &mdash; and the world made anew in their image.
+      </div>
+    </div>
+  );
+}
+
+function ShChrome() {
+  const t = useTime();
+  const op = interpolate([0.5, 2.0, 17.5, 18], [0, 0.65, 0.65, 0], Easing.easeInOutCubic)(t);
+  const section =
+    t < 6.0 ? 'I.  THE ONE' :
+    t < 9.0 ? 'II.  THE SHATTERING' :
+             'III.  THE SIXTEEN';
+  const years = Math.floor((t / 18) * 8000);
+  const yearStr = years.toLocaleString('en-US') + ' YRS';
+  return (
+    <div style={{
+      position:'absolute', inset:0, pointerEvents:'none',
+      opacity: op, fontFamily: SH_MONO, color: SH_GOLD,
+      letterSpacing:'0.3em', fontSize: 12, textTransform:'uppercase',
+    }}>
+      <div style={{position:'absolute', left: 64, top: 56}}>The Shattering</div>
+      <div style={{position:'absolute', right: 64, top: 56}}>{section}</div>
+      <div style={{position:'absolute', left: 64, bottom: 56}}>From the essays of Khriss</div>
+      <div style={{position:'absolute', right: 64, bottom: 56, fontVariantNumeric:'tabular-nums'}}>{yearStr}</div>
+      <svg width={1920} height={1080} style={{position:'absolute', inset:0}}>
+        <g stroke={SH_GOLD} strokeWidth="1" fill="none">
+          <path d="M 48 48 L 48 80 M 48 48 L 80 48"/>
+          <path d="M 1872 48 L 1872 80 M 1872 48 L 1840 48"/>
+          <path d="M 48 1032 L 48 1000 M 48 1032 L 80 1032"/>
+          <path d="M 1872 1032 L 1872 1000 M 1872 1032 L 1840 1032"/>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function ShatteringScene({ tweaks = {settleRadius:390, shardSize:43, labelR:460, showNumerals:false}, sp }) {
+  return (
+    <>
+      <ShStarfield />
+      <ShChartFrame />
+      <ShTheOne />
+      <ShShards settleRadius={tweaks.settleRadius} shardSize={tweaks.shardSize} />
+      <ShPairReveal settleRadius={tweaks.settleRadius} />
+      <ShPairFlares settleRadius={tweaks.settleRadius} />
+      <ShOneLabel />
+      <ShShardLabels labelR={tweaks.labelR} showNumerals={tweaks.showNumerals} sp={sp} />
+      <ShClosingProse />
+      <ShChrome />
+    </>
+  );
+}
+
+function ShatteringHero({ sp }) {
+  const [ended, setEnded] = React.useState(false);
+  const [restartCount, setRestartCount] = React.useState(0);
+
+  const replay = () => {
+    setEnded(false);
+    setRestartCount(c => c + 1);
+  };
+
+  return (
+    <div style={{
+      position:'relative',
+      width:'min(90vw, 1600px)',
+      aspectRatio: '16 / 9',
+      margin: '0 auto 40px',
+      background: '#0a0c14',
+    }}>
+      <Stage
+        width={1920}
+        height={1080}
+        duration={17.4}
+        background="#0a0c14"
+        loop={false}
+        hideControls={true}
+        onEnded={() => setEnded(true)}
+        restartSignal={restartCount}
+      >
+        <ShatteringScene sp={sp} />
+      </Stage>
+
+      {ended && (
+        <button
+          onClick={replay}
+          title="Replay from the beginning"
+          style={{
+            position:'absolute',
+            right: 24, bottom: 24,
+            padding:'9px 18px',
+            background:'rgba(10,13,24,0.72)',
+            border:'1px solid rgba(232,195,112,0.45)',
+            borderRadius: 4,
+            color: SH_IVORY,
+            fontFamily: SH_MONO, fontSize: 11,
+            letterSpacing:'0.3em', textTransform:'uppercase',
+            cursor:'pointer',
+            backdropFilter:'blur(6px)',
+          }}
+        >
+          &#x21BB;&nbsp;&nbsp;Replay
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ── Spoiler helpers ──
 function mkSp(books, au, sa) {
@@ -93,6 +1017,13 @@ const SHARDS = [
   {n:15,name:"Invention",intent:"Creation",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["row"],rP:[],rV:[],rS:["row"],notes:[]},
   {n:16,name:"Reason",intent:"Logic",planet:"Unknown",vessel:"Unknown",status:"Whole",rN:["wat"],rP:[],rV:[],rS:["wat"],notes:[]},
 ];
+
+// Shard-name reveal gates keyed by uppercase name, sourced from SHARDS[].rN.
+// Consumed by the Shattering animation's ShShardLabels to hide un-revealed names.
+const SH_GATE_BY_NAME = SHARDS.reduce(function(acc, s) {
+  acc[s.name.toUpperCase()] = s.rN || [];
+  return acc;
+}, {});
 
 const DAWNSHARDS = [
   {n:1,cmd:"Change",holder:"Rysn Ftori",loc:"Roshar (Aimia)",rR:["dawn"],rH:["dawn"],rC:["dawn"],notes:[{t:"Protected by the Sleepless",r:["dawn"]},{t:"Primal Commands used to create the Cosmere",r:["dawn"]}]},
@@ -1451,6 +2382,8 @@ function TabShards({books, sa, setSA, sp}) {
     <div>
       <Toggle on={sa} set={setSA} />
 
+      {u(["sh"]) && <ShatteringHero sp={sp} />}
+
       {/* Shard table */}
       <div style={{marginBottom:"16px",background:"#111827",border:"1px solid #1e293b",borderRadius:"12px",overflow:"hidden"}}>
         <button onClick={function(){shOpen[1](!shOpen[0]);}} style={{width:"100%",padding:"14px 20px",background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -1899,6 +2832,52 @@ function applyProfileData(arr, prefix, profileName) {
     return b;
   });
 }
+
+// ── Share-link encoding (URL hash, cross-device) ──
+// Compact encoding: {n:name, d:{bookId: ro}, v:1} where ro = (read?1:0)|(owned?2:0).
+// Skips entries where both read & owned are false. Base64-URL-safe.
+function encodeShareLink(name, data) {
+  var d = {};
+  Object.keys(data || {}).forEach(function(k) {
+    var v = data[k] || {};
+    var ro = (v.read ? 1 : 0) | (v.owned ? 2 : 0);
+    if (ro > 0) d[k] = ro;
+  });
+  var payload = JSON.stringify({n: name, d: d, v: 1});
+  return btoa(unescape(encodeURIComponent(payload)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decodeShareLink(encoded) {
+  try {
+    var b64 = String(encoded).replace(/-/g, '+').replace(/_/g, '/');
+    var pad = '==='.slice(0, (4 - b64.length % 4) % 4);
+    var payload = decodeURIComponent(escape(atob(b64 + pad)));
+    var parsed = JSON.parse(payload);
+    if (!parsed || !parsed.n || typeof parsed.d !== 'object') return null;
+    var data = {};
+    Object.keys(parsed.d).forEach(function(k) {
+      var ro = parsed.d[k] | 0;
+      data[k] = {read: !!(ro & 1), owned: !!(ro & 2)};
+    });
+    return {profileName: String(parsed.n), data: data};
+  } catch(e) { return null; }
+}
+// Merge semantics: union — a book stays read/owned if either side has it read/owned.
+function mergeProfileData(existing, incoming) {
+  var merged = {};
+  Object.keys(existing || {}).forEach(function(k) {
+    merged[k] = {read: !!existing[k].read, owned: !!existing[k].owned};
+  });
+  Object.keys(incoming || {}).forEach(function(k) {
+    var prev = merged[k] || {read:false, owned:false};
+    merged[k] = {
+      read: !!(prev.read || incoming[k].read),
+      owned: !!(prev.owned || incoming[k].owned),
+    };
+  });
+  return merged;
+}
+
 // Migrate old single-profile data if it exists
 (function migrateOldData() {
   try {
@@ -1942,9 +2921,86 @@ function App() {
   var saState = useState(false);
   var sa = saState[0];
   var setSA = saState[1];
+  var importState = useState(null);
+  var pendingImport = importState[0];
+  var setPendingImport = importState[1];
+  var toastState = useState("");
+  var toast = toastState[0];
+  var setToast = toastState[1];
 
   // Persist progress to localStorage on every change
   useEffect(function() { saveProfileData(activeProfile, books, au); }, [books, au, activeProfile]);
+
+  // Detect share link on mount
+  useEffect(function() {
+    var h = window.location.hash || "";
+    if (h.indexOf("#sync=") === 0) {
+      var decoded = decodeShareLink(h.slice(6));
+      if (decoded) setPendingImport(decoded);
+    }
+  }, []);
+
+  // Auto-dismiss toast after 2.2s
+  useEffect(function() {
+    if (!toast) return;
+    var id = setTimeout(function(){ setToast(""); }, 2200);
+    return function(){ clearTimeout(id); };
+  }, [toast]);
+
+  function clearSyncHash() {
+    try {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      } else {
+        window.location.hash = "";
+      }
+    } catch(e) {}
+  }
+
+  function handleShare(name) {
+    if (name === activeProfile) saveProfileData(name, books, au);
+    var data = getProfileData(name) || {};
+    var encoded = encodeShareLink(name, data);
+    var url = window.location.origin + window.location.pathname + window.location.search + "#sync=" + encoded;
+    var isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || "");
+    setDropOpen(false);
+    if (isMobile && navigator.share) {
+      navigator.share({ title: "Cosmere Catalogue · " + name, url: url }).catch(function(){});
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function(){ setToast("Link copied"); },
+        function(){ window.prompt("Copy this link:", url); }
+      );
+    } else {
+      window.prompt("Copy this link:", url);
+    }
+  }
+
+  function confirmImport() {
+    if (!pendingImport) return;
+    var name = pendingImport.profileName;
+    var existing = getProfileData(name) || {};
+    var merged = mergeProfileData(existing, pendingImport.data);
+    var profiles = getProfiles();
+    profiles[name] = merged;
+    saveProfiles(profiles);
+    if (activeProfile !== name) {
+      saveActiveProfile(name);
+      setActiveProfile(name);
+    }
+    setBooks(applyProfileData(B0, "", name));
+    setAu(applyProfileData(AU0, "au_", name));
+    setPendingImport(null);
+    clearSyncHash();
+    setToast("Merged into " + name);
+  }
+
+  function dismissImport() {
+    setPendingImport(null);
+    clearSyncHash();
+  }
 
   function switchProfile(name) {
     // Save current first
@@ -2011,8 +3067,26 @@ function App() {
     {k:"time",l:"⏳ Timeline"}
   ];
 
+  var pendingReadCount = pendingImport ? Object.keys(pendingImport.data).filter(function(k){return pendingImport.data[k].read;}).length : 0;
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(170deg,#0a0c14,#111827 40%,#0f1520)",color:"#e2e8f0",fontFamily:"'Crimson Text','Georgia',serif"}}>
+      {pendingImport && (
+        <div style={{position:"sticky",top:0,zIndex:50,background:"rgba(74,158,255,0.10)",borderBottom:"1px solid rgba(74,158,255,0.35)",padding:"12px 20px",display:"flex",alignItems:"center",gap:"14px",flexWrap:"wrap",justifyContent:"center",fontFamily:"'Cinzel',serif",backdropFilter:"blur(6px)"}}>
+          <span style={{fontSize:"12px",color:"#cbd5e1",letterSpacing:"1px"}}>
+            {"Shared profile \u00B7 "}
+            <strong style={{color:"#e2e8f0"}}>{pendingImport.profileName}</strong>
+            {" \u00B7 " + pendingReadCount + " book" + (pendingReadCount === 1 ? "" : "s") + " read"}
+          </span>
+          <button onClick={confirmImport} style={{padding:"6px 14px",background:"#4a9eff",border:"none",borderRadius:"4px",color:"#fff",fontSize:"11px",cursor:"pointer",fontFamily:"'Cinzel',serif",letterSpacing:"2px",textTransform:"uppercase"}}>Merge</button>
+          <button onClick={dismissImport} style={{padding:"6px 14px",background:"transparent",border:"1px solid #334155",borderRadius:"4px",color:"#94a3b8",fontSize:"11px",cursor:"pointer",fontFamily:"'Cinzel',serif",letterSpacing:"2px",textTransform:"uppercase"}}>Cancel</button>
+        </div>
+      )}
+      {toast && (
+        <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",zIndex:9999,background:"rgba(20,25,40,0.95)",border:"1px solid rgba(232,195,112,0.35)",padding:"10px 20px",borderRadius:"6px",color:"#efe6cf",fontSize:"12px",fontFamily:"'Cinzel',serif",letterSpacing:"2px",textTransform:"uppercase",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+          {toast}
+        </div>
+      )}
       <div style={{padding:"48px 24px 24px",textAlign:"center",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"radial-gradient(ellipse at 50% 0%,rgba(74,158,255,0.08),transparent 60%)",pointerEvents:"none"}} />
         <div style={{fontSize:"11px",letterSpacing:"6px",textTransform:"uppercase",color:"#64748b",fontFamily:"'Cinzel',serif",marginBottom:"12px"}}>Brandon Sanderson</div>
@@ -2033,9 +3107,12 @@ function App() {
                 return (
                   <div key={name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",borderBottom:"1px solid #334155",background:isActive?"#334155":"transparent",cursor:"pointer"}} onClick={function(){if(!isActive)switchProfile(name);}}>
                     <span style={{fontSize:"13px",color:isActive?"#e2e8f0":"#94a3b8",fontFamily:"'Cinzel',serif"}}>{isActive?"✓ ":""}{name}</span>
-                    {!isDefault && !isActive && (
-                      <button onClick={function(e){e.stopPropagation();if(confirm("Delete profile \""+name+"\"?"))deleteProfile(name);}} style={{background:"transparent",border:"none",color:"#64748b",cursor:"pointer",fontSize:"12px",padding:"2px 6px"}}>{"✕"}</button>
-                    )}
+                    <div style={{display:"flex",alignItems:"center",gap:"2px"}}>
+                      <button onClick={function(e){e.stopPropagation();handleShare(name);}} title={"Share \""+name+"\" across devices"} style={{background:"transparent",border:"none",color:"#64748b",cursor:"pointer",fontSize:"14px",padding:"2px 6px",lineHeight:1}}>{"\u2197"}</button>
+                      {!isDefault && !isActive && (
+                        <button onClick={function(e){e.stopPropagation();if(confirm("Delete profile \""+name+"\"?"))deleteProfile(name);}} style={{background:"transparent",border:"none",color:"#64748b",cursor:"pointer",fontSize:"12px",padding:"2px 6px"}}>{"✕"}</button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
